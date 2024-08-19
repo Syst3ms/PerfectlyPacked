@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "packed_bundles",
+  "version": "${version}",
+  "name": "Packed Bundles",
+  "description": "Using the best-known square packing technology, optimize the space in your bundles! Pre-bundle rework.",
+  "authors": [],
+  "contact": {},
+  "license": "GNU GPLv2",
+  "icon": "assets/packed_bundles/icon.png",
+  "environment": "*",
+  "entrypoints": {},
+  "mixins": [
+    {
+      "config": "packed_bundles.client.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric": "*",
+    "minecraft": "${minecraft_version}"
+  }
+}
