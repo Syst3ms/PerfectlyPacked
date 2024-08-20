@@ -965,14 +965,14 @@ abstract class BundleTooltipComponentMixin implements TooltipComponent {
 		y++;
 		var matrices = ctx.getMatrices();
 
-		for (int j = 3; j > 0; j--) {
-			for (int k = 0; k < j; k++) {
-				this.drawSlot(x + SLOT_SIZE * k, y + SLOT_SIZE * (3 - j), i++, full, ctx, textRenderer);
+		for (int j = 0; j < 3; j++) {
+			for (int k = 0; k < 3 - j; k++) {
+				this.drawSlot(x + SLOT_SIZE * k, y + SLOT_SIZE * j, i++, full, ctx, textRenderer);
 			}
 		}
-		for (int j = 3; j > 0; j--) {
-			for (int k = 0; k < j; k++) {
-				this.drawSlot(x + squareSize - SLOT_SIZE * (k + 1), y + SLOT_SIZE * (3 - j), i++, full, ctx, textRenderer);
+		for (int j = 0; j < 3; j++) {
+			for (int k = 3 - j; k >= 1; k--) {
+				this.drawSlot(x + squareSize - SLOT_SIZE * k, y + SLOT_SIZE * j, i++, full, ctx, textRenderer);
 			}
 		}
 
@@ -989,14 +989,14 @@ abstract class BundleTooltipComponentMixin implements TooltipComponent {
 
 		matrices.pop();
 
-		for (int j = 1; j <= 3; j++) {
-			for (int k = 0; k < j; k++) {
-				this.drawSlot(x + SLOT_SIZE * k, y + squareSize - SLOT_SIZE * (4 - j), i++, full, ctx, textRenderer);
+		for (int j = 3; j >= 1; j--) {
+			for (int k = 0; k < 4 - j; k++) {
+				this.drawSlot(x + SLOT_SIZE * k, y + squareSize - SLOT_SIZE * j, i++, full, ctx, textRenderer);
 			}
 		}
-		for (int j = 1; j <= 3; j++) {
-			for (int k = 0; k < j; k++) {
-				this.drawSlot(x + squareSize - SLOT_SIZE * (k + 1), y + squareSize - SLOT_SIZE * (4 - j), i++, full, ctx, textRenderer);
+		for (int j = 3; j >= 1; j--) {
+			for (int k = 4 - j; k >= 1; k--) {
+				this.drawSlot(x + squareSize - SLOT_SIZE * k, y + squareSize - SLOT_SIZE * j, i++, full, ctx, textRenderer);
 			}
 		}
 	}
@@ -1010,9 +1010,9 @@ abstract class BundleTooltipComponentMixin implements TooltipComponent {
 		y++;
 		var matrices = ctx.getMatrices();
 
-		for (int j = 3; j > 0; j--) {
-			for (int k = 0; k < j; k++) {
-				this.drawSlot(x + SLOT_SIZE * k, y + SLOT_SIZE * (3 - j), i++, full, ctx, textRenderer);
+		for (int j = 0; j < 3; j++) {
+			for (int k = 0; k < 3 - j; k++) {
+				this.drawSlot(x + SLOT_SIZE * k, y + SLOT_SIZE * j, i++, full, ctx, textRenderer);
 			}
 		}
 
@@ -1047,9 +1047,9 @@ abstract class BundleTooltipComponentMixin implements TooltipComponent {
 			this.drawSlot(x + SLOT_SIZE * j, y + squareSize - SLOT_SIZE, i++, full, ctx, textRenderer);
 		}
 
-		for (int j = 1; j <= 3; j++) {
-			for (int k = 0; k < j; k++) {
-				this.drawSlot(x + squareSize - SLOT_SIZE * (k + 1), y + squareSize - SLOT_SIZE * (4 - j), i++, full, ctx, textRenderer);
+		for (int j = 3; j >= 1; j--) {
+			for (int k = 4 - j; k >= 1; k--) {
+				this.drawSlot(x + squareSize - SLOT_SIZE * k, y + squareSize - SLOT_SIZE * j, i++, full, ctx, textRenderer);
 			}
 		}
 	}
