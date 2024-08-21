@@ -1,23 +1,23 @@
 {
   "schemaVersion": 1,
-  "id": "packed_bundles",
+  "id": "perfectlypacked",
   "version": "${version}",
-  "name": "Packed Bundles",
+  "name": "Perfectly Packed",
   "description": "Using the best-known square packing technology, optimize the space in your bundles! Pre-bundle rework.",
   "authors": [],
   "contact": {},
   "license": "GNU GPLv2",
-  "icon": "assets/packed_bundles/icon.png",
+  "icon": "assets/perfectlypacked/icon.png",
   "environment": "*",
   "entrypoints": {},
   "mixins": [
     {
-      "config": "packed_bundles.client.mixins.json",
+      "config": "perfectlypacked.client.mixins.json",
       "environment": "client"
     }
   ],
   "depends": {
     "fabricloader": ">=${loader_version}",
-    "minecraft": ">=1.17 <=1.21.1"
+    "minecraft": ">=1.21 <=1.21.1"
   }
 }

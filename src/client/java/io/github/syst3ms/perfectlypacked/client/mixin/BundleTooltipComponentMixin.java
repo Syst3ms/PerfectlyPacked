@@ -1,4 +1,4 @@
-package io.github.syst3ms.packedbundles.client.mixin;
+package io.github.syst3ms.perfectlypacked.client.mixin;
 
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import org.apache.commons.lang3.math.Fraction;
