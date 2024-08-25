@@ -17,8 +17,9 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.tooltip.BundleTooltipComponent;
 import net.minecraft.client.gui.tooltip.TooltipComponent;
 import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.component.type.BundleContentsComponent;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.collection.DefaultedList;
 import net.minecraft.util.math.RotationAxis;
 
 @Mixin(BundleTooltipComponent.class)
@@ -30,11 +31,13 @@ abstract class BundleTooltipComponentMixin implements TooltipComponent {
 	private static Identifier BACKGROUND_TEXTURE;
 	@Shadow
 	@Final
-	private BundleContentsComponent bundleContents;
+	private DefaultedList<ItemStack> inventory;
 
 	@Shadow
 	protected abstract void drawSlot(int x, int y, int index, boolean shouldBlock, DrawContext context,
 									 TextRenderer textRenderer);
+
+	@Shadow @Final private int occupancy;
 
 	@Unique
 	private static int trivialPackingSide(int n) {
@@ -43,7 +46,7 @@ abstract class BundleTooltipComponentMixin implements TooltipComponent {
 
 	@Unique
 	private int size() {
-		return Math.min(this.bundleContents.size() + 1, 64);
+		return Math.min(this.inventory.size() + 1, 64);
 	}
 
 	@ModifyReturnValue(method = "getColumns", at = @At("RETURN"))
@@ -102,7 +105,7 @@ abstract class BundleTooltipComponentMixin implements TooltipComponent {
 	@Inject(method = "drawItems", at = @At("HEAD"), cancellable = true)
 	private void handleSpecialNumbers(TextRenderer textRenderer, int x, int y, DrawContext context, CallbackInfo ci) {
 		int count = size();
-		boolean full = this.bundleContents.getOccupancy().compareTo(Fraction.ONE) >= 0;
+		boolean full = this.occupancy >= 64;
 		boolean special = true;
 		switch (count) {
 			case 5 -> drawFive(textRenderer, x, y, context, full);
