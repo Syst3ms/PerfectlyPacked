@@ -1,7 +1,6 @@
 package io.github.syst3ms.perfectlypacked.client.mixin;
 
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
-import org.apache.commons.lang3.math.Fraction;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.spongepowered.asm.mixin.Final;
@@ -10,6 +9,7 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import net.minecraft.client.font.TextRenderer;
@@ -18,7 +18,6 @@ import net.minecraft.client.gui.tooltip.BundleTooltipComponent;
 import net.minecraft.client.gui.tooltip.TooltipComponent;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.item.ItemStack;
-import net.minecraft.util.Identifier;
 import net.minecraft.util.collection.DefaultedList;
 import net.minecraft.util.math.RotationAxis;
 
@@ -28,16 +27,15 @@ abstract class BundleTooltipComponentMixin implements TooltipComponent {
 	private static final int SLOT_SIZE = 18;
 	@Shadow
 	@Final
-	private static Identifier BACKGROUND_TEXTURE;
-	@Shadow
-	@Final
 	private DefaultedList<ItemStack> inventory;
+	@Unique
+	private static boolean SPECIAL = false;
+
+	@Shadow @Final private int occupancy;
 
 	@Shadow
 	protected abstract void drawSlot(int x, int y, int index, boolean shouldBlock, DrawContext context,
 									 TextRenderer textRenderer);
-
-	@Shadow @Final private int occupancy;
 
 	@Unique
 	private static int trivialPackingSide(int n) {
@@ -47,6 +45,15 @@ abstract class BundleTooltipComponentMixin implements TooltipComponent {
 	@Unique
 	private int size() {
 		return Math.min(this.inventory.size() + 1, 64);
+	}
+
+	@ModifyArg(
+			method = "draw",
+			at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/DrawContext;drawTexture(Lnet/minecraft/util/Identifier;IIIFFIIII)V"),
+			index = 7
+	)
+	private int correctHeightForSpecial(int height) {
+		return SPECIAL ? SLOT_SIZE : height;
 	}
 
 	@ModifyReturnValue(method = "getColumns", at = @At("RETURN"))
@@ -62,6 +69,12 @@ abstract class BundleTooltipComponentMixin implements TooltipComponent {
 	@Unique
 	private static int getSquareSize(int n) {
 		return getSquareSize(n, SLOT_SIZE);
+	}
+
+	@Unique
+	private static void drawBackground(DrawContext context, int x, int y, int squareSize) {
+		context.fill(x, y, x + squareSize, y + squareSize, 0xFFC6C6C6);
+		context.fill(x, y + squareSize - 1, x + squareSize, y + squareSize, 0xFF8B8B8B);
 	}
 
 	@Unique
@@ -106,7 +119,7 @@ abstract class BundleTooltipComponentMixin implements TooltipComponent {
 	private void handleSpecialNumbers(TextRenderer textRenderer, int x, int y, DrawContext context, CallbackInfo ci) {
 		int count = size();
 		boolean full = this.occupancy >= 64;
-		boolean special = true;
+		SPECIAL = true;
 		switch (count) {
 			case 5 -> drawFive(textRenderer, x, y, context, full);
 			case 10 -> drawTen(textRenderer, x, y, context, full);
@@ -129,10 +142,10 @@ abstract class BundleTooltipComponentMixin implements TooltipComponent {
 			case 53 -> drawFiftyThree(textRenderer, x, y, context, full);
 			case 54 -> drawFiftyFour(textRenderer, x, y, context, full);
 			case 55 -> drawFiftyFive(textRenderer, x, y, context, full);
-			default -> special = false;
+			default -> SPECIAL = false;
 		}
 
-		if (special) {
+		if (SPECIAL) {
 			ci.cancel();
 		}
 	}
@@ -141,7 +154,7 @@ abstract class BundleTooltipComponentMixin implements TooltipComponent {
 	private void drawFive(TextRenderer textRenderer, int x, int y, DrawContext ctx, boolean full) {
 		int squareSize = getSquareSize(5) + 2; // margin
 		int straightOffset = 31;
-		ctx.drawGuiTexture(BACKGROUND_TEXTURE, x, y, squareSize, squareSize);
+		drawBackground(ctx, x, y, squareSize);
 		this.drawSlot(x + 1, y + 1, 0, full, ctx, textRenderer);
 		this.drawSlot(x + straightOffset + 1, y + 1, 1, full, ctx, textRenderer);
 
@@ -162,7 +175,7 @@ abstract class BundleTooltipComponentMixin implements TooltipComponent {
 		int i = 0;
 		int squareSize = getSquareSize(10) + 2;
 		int gap = 31;
-		ctx.drawGuiTexture(BACKGROUND_TEXTURE, x, y, squareSize, squareSize);
+		drawBackground(ctx, x, y, squareSize);
 		this.drawSlot(x + 1,                   y + 1, i++, full, ctx, textRenderer);
 		this.drawSlot(x + gap + 1,             y + 1, i++, full, ctx, textRenderer);
 		this.drawSlot(x + gap + SLOT_SIZE + 1, y + 1, i++, full, ctx, textRenderer);
@@ -187,7 +200,7 @@ abstract class BundleTooltipComponentMixin implements TooltipComponent {
 	private void drawEleven(TextRenderer textRenderer, int x, int y, DrawContext ctx, boolean full) {
 		int i = 0;
 		int squareSize = getSquareSize(11);
-		ctx.drawGuiTexture(BACKGROUND_TEXTURE, x, y, squareSize + 2, squareSize + 2);
+		drawBackground(ctx, x, y, squareSize + 2);
 		x++;
 		y++;
 		var matrices = ctx.getMatrices();
@@ -230,7 +243,7 @@ abstract class BundleTooltipComponentMixin implements TooltipComponent {
 		int i = 0;
 		float normSize = 4.67553009f;
 		int squareSize = getSquareSize(17);
-		ctx.drawGuiTexture(BACKGROUND_TEXTURE, x, y, squareSize + 2, squareSize + 2);
+		drawBackground(ctx, x, y, squareSize + 2);
 		x++;
 		y++;
 		var matrices = ctx.getMatrices();
@@ -302,7 +315,7 @@ abstract class BundleTooltipComponentMixin implements TooltipComponent {
 	private void drawEighteen(TextRenderer textRenderer, int x, int y, DrawContext ctx, boolean full) {
 		int i = 0;
 		int squareSize = getSquareSize(18);
-		ctx.drawGuiTexture(BACKGROUND_TEXTURE, x, y, squareSize + 2, squareSize + 2);
+		drawBackground(ctx, x, y, squareSize + 2);
 		x++;
 		y++;
 		var matrices = ctx.getMatrices();
@@ -357,7 +370,7 @@ abstract class BundleTooltipComponentMixin implements TooltipComponent {
 		int i = 0;
 		float normSize = 4.88561808f;
 		int squareSize = getSquareSize(19);
-		ctx.drawGuiTexture(BACKGROUND_TEXTURE, x, y, squareSize + 2, squareSize + 2);
+		drawBackground(ctx, x, y, squareSize + 2);
 		x++;
 		y++;
 		var matrices = ctx.getMatrices();
@@ -428,7 +441,7 @@ abstract class BundleTooltipComponentMixin implements TooltipComponent {
 		int i = 0;
 		float normSize = 5.62132034f;
 		int squareSize = getSquareSize(26);
-		ctx.drawGuiTexture(BACKGROUND_TEXTURE, x, y, squareSize + 2, squareSize + 2);
+		drawBackground(ctx, x, y, squareSize + 2);
 		x++;
 		y++;
 		var matrices = ctx.getMatrices();
@@ -498,7 +511,7 @@ abstract class BundleTooltipComponentMixin implements TooltipComponent {
 		int i = 0;
 		var fiveOffset = (int) Math.floor(SLOT_SIZE * 1.70710678f);
 		int squareSize = getSquareSize(27);
-		ctx.drawGuiTexture(BACKGROUND_TEXTURE, x, y, squareSize + 2, squareSize + 2);
+		drawBackground(ctx, x, y, squareSize + 2);
 		x++;
 		y++;
 		var matrices = ctx.getMatrices();
@@ -550,7 +563,7 @@ abstract class BundleTooltipComponentMixin implements TooltipComponent {
 		int i = 0;
 		int squareSize = getSquareSize(28);
 		int centerOffset = (squareSize - SLOT_SIZE) / 2;
-		ctx.drawGuiTexture(BACKGROUND_TEXTURE, x, y, squareSize + 2, squareSize + 2);
+		drawBackground(ctx, x, y, squareSize + 2);
 		x++;
 		y++;
 		var matrices = ctx.getMatrices();
@@ -628,7 +641,7 @@ abstract class BundleTooltipComponentMixin implements TooltipComponent {
 	private void drawTwentyNine(TextRenderer textRenderer, int x, int y, DrawContext ctx, boolean full) {
 		int i = 0;
 		int squareSize = getSquareSize(29);
-		ctx.drawGuiTexture(BACKGROUND_TEXTURE, x, y, squareSize + 2, squareSize + 2);
+		drawBackground(ctx, x, y, squareSize + 2);
 		x++;
 		y++;
 		var matrices = ctx.getMatrices();
@@ -720,7 +733,7 @@ abstract class BundleTooltipComponentMixin implements TooltipComponent {
 		int i = 0;
 		float normSize = 6.59861960f;
 		int squareSize = getSquareSize(37);
-		ctx.drawGuiTexture(BACKGROUND_TEXTURE, x, y, squareSize + 2, squareSize + 2);
+		drawBackground(ctx, x, y, squareSize + 2);
 		x++;
 		y++;
 		var matrices = ctx.getMatrices();
@@ -833,7 +846,7 @@ abstract class BundleTooltipComponentMixin implements TooltipComponent {
 		int i = 0;
 		var fiveOffset = (int) Math.floor(SLOT_SIZE * 1.70710678f);
 		int squareSize = getSquareSize(38);
-		ctx.drawGuiTexture(BACKGROUND_TEXTURE, x, y, squareSize + 2, squareSize + 2);
+		drawBackground(ctx, x, y, squareSize + 2);
 		x++;
 		y++;
 		var matrices = ctx.getMatrices();
@@ -900,7 +913,7 @@ abstract class BundleTooltipComponentMixin implements TooltipComponent {
 		int i = 0;
 		float normSize = 6.81880916f;
 		int squareSize = getSquareSize(39);
-		ctx.drawGuiTexture(BACKGROUND_TEXTURE, x, y, squareSize + 2, squareSize + 2);
+		drawBackground(ctx, x, y, squareSize + 2);
 		x++;
 		y++;
 		var matrices = ctx.getMatrices();
@@ -963,7 +976,7 @@ abstract class BundleTooltipComponentMixin implements TooltipComponent {
 	private void drawForty(TextRenderer textRenderer, int x, int y, DrawContext ctx, boolean full) {
 		int i = 0;
 		int squareSize = getSquareSize(40);
-		ctx.drawGuiTexture(BACKGROUND_TEXTURE, x, y, squareSize + 2, squareSize + 2);
+		drawBackground(ctx, x, y, squareSize + 2);
 		x++;
 		y++;
 		var matrices = ctx.getMatrices();
@@ -1008,7 +1021,7 @@ abstract class BundleTooltipComponentMixin implements TooltipComponent {
 	private void drawFortyOne(TextRenderer textRenderer, int x, int y, DrawContext ctx, boolean full) {
 		int i = 0;
 		int squareSize = getSquareSize(41);
-		ctx.drawGuiTexture(BACKGROUND_TEXTURE, x, y, squareSize + 2, squareSize + 2);
+		drawBackground(ctx, x, y, squareSize + 2);
 		x++;
 		y++;
 		var matrices = ctx.getMatrices();
@@ -1062,7 +1075,7 @@ abstract class BundleTooltipComponentMixin implements TooltipComponent {
 		int i = 0;
 		float normSize = 7.59861960f;
 		int squareSize = getSquareSize(50);
-		ctx.drawGuiTexture(BACKGROUND_TEXTURE, x, y, squareSize + 2, squareSize + 2);
+		drawBackground(ctx, x, y, squareSize + 2);
 		x++;
 		y++;
 		var matrices = ctx.getMatrices();
@@ -1174,7 +1187,7 @@ abstract class BundleTooltipComponentMixin implements TooltipComponent {
 		int i = 0;
 		float normSize = 7.70435372f;
 		int squareSize = getSquareSize(51);
-		ctx.drawGuiTexture(BACKGROUND_TEXTURE, x, y, squareSize + 2, squareSize + 2);
+		drawBackground(ctx, x, y, squareSize + 2);
 		x++;
 		y++;
 		var matrices = ctx.getMatrices();
@@ -1342,7 +1355,7 @@ abstract class BundleTooltipComponentMixin implements TooltipComponent {
 	private void drawFiftyTwo(TextRenderer textRenderer, int x, int y, DrawContext ctx, boolean full) {
 		int i = 0;
 		int squareSize = getSquareSize(52);
-		ctx.drawGuiTexture(BACKGROUND_TEXTURE, x, y, squareSize + 2, squareSize + 2);
+		drawBackground(ctx, x, y, squareSize + 2);
 		x++;
 		y++;
 		var matrices = ctx.getMatrices();
@@ -1442,7 +1455,7 @@ abstract class BundleTooltipComponentMixin implements TooltipComponent {
 	private void drawFiftyThree(TextRenderer textRenderer, int x, int y, DrawContext ctx, boolean full) {
 		int i = 0;
 		int squareSize = getSquareSize(53);
-		ctx.drawGuiTexture(BACKGROUND_TEXTURE, x, y, squareSize + 2, squareSize + 2);
+		drawBackground(ctx, x, y, squareSize + 2);
 		x++;
 		y++;
 		var matrices = ctx.getMatrices();
@@ -1485,7 +1498,7 @@ abstract class BundleTooltipComponentMixin implements TooltipComponent {
 		int i = 0;
 		float normSize = 7.84666719f;
 		int squareSize = getSquareSize(54);
-		ctx.drawGuiTexture(BACKGROUND_TEXTURE, x, y, squareSize + 2, squareSize + 2);
+		drawBackground(ctx, x, y, squareSize + 2);
 		x++;
 		y++;
 		var matrices = ctx.getMatrices();
@@ -1596,7 +1609,7 @@ abstract class BundleTooltipComponentMixin implements TooltipComponent {
 	private void drawFiftyFive(TextRenderer textRenderer, int x, int y, DrawContext ctx, boolean full) {
 		int i = 0;
 		int squareSize = getSquareSize(55);
-		ctx.drawGuiTexture(BACKGROUND_TEXTURE, x, y, squareSize + 2, squareSize + 2);
+		drawBackground(ctx, x, y, squareSize + 2);
 		x++;
 		y++;
 		var matrices = ctx.getMatrices();
