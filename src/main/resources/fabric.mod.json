@@ -6,7 +6,7 @@
   "description": "Using the best-known square packing technology, optimize the space in your bundles! Pre-bundle rework.",
   "authors": [],
   "contact": {},
-  "license": "GNU GPLv2",
+  "license": "GNU GPLv3",
   "icon": "assets/perfectlypacked/icon.png",
   "environment": "*",
   "entrypoints": {},
@@ -18,6 +18,6 @@
   ],
   "depends": {
     "fabricloader": ">=${loader_version}",
-    "minecraft": "~1.19"
+    "minecraft": "1.19.4"
   }
 }
