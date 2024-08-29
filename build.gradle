@@ -7,7 +7,7 @@ version = project.mod_version
 group = project.maven_group
 
 base {
-    archivesName = "${project.archives_base_name}_1.20.5"
+    archivesName = "${project.archives_base_name}_1.20.6"
 }
 
 loom {
