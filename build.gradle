@@ -7,7 +7,7 @@ version = "${project.mod_version}+${project.minecraft_version}"
 group = project.maven_group
 
 base {
-    archivesName = "${project.archives_base_name}_${version}"
+    archivesName = project.archives_base_name
 }
 
 loom {
@@ -84,7 +84,5 @@ modrinth {
     gameVersions = ["1.20.5", "1.20.6"]
     versionType = "release"
     uploadFile = remapJar
-    changelog = """\
-        Added the packing of 65 squares.
-        Refactored and cleaned up the code.""".stripIndent()
+    changelog = """Hotfix for the packing of 5 squares.""".stripIndent()
 }
