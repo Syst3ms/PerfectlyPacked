@@ -4,7 +4,8 @@
   "package": "io.github.syst3ms.perfectlypacked.client.mixin",
   "compatibilityLevel": "JAVA_17",
   "client": [
-    "BundleTooltipComponentMixin"
+    "BundleTooltipComponentMixin",
+    "ItemRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1
