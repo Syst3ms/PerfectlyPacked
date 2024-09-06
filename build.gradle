@@ -84,7 +84,5 @@ modrinth {
     gameVersions = ["1.21", "1.21.1"]
     versionType = "release"
     uploadFile = remapJar
-    changelog = """\
-        Hotfix for an issue where the first item of the bundle
-        would get repeated across the entire inventory.""".stripIndent()
+    changelog = """Hotfix for the packing of 5 squares.""".stripIndent()
 }

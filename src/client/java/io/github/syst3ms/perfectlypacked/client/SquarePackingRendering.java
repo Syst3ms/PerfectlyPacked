@@ -99,7 +99,7 @@ public class SquarePackingRendering {
 		matrices.push();
 		matrices.translate(x + SLOT_SIZE, y + SLOT_SIZE, 0);
 		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(45));
-		matrices.translate(0f, SLOT_SIZE * 0.5f, 0f);
+		matrices.translate(0f, SLOT_SIZE * -0.5f, 0f);
 		drawer.drawSlot(0, 0, 2);
 		matrices.pop();
 
