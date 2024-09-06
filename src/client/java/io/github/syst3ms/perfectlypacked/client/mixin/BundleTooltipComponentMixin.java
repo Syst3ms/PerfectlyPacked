@@ -25,7 +25,7 @@ abstract class BundleTooltipComponentMixin implements TooltipComponent {
 	private static Identifier BACKGROUND_TEXTURE;
 	@Shadow
 	@Final
-	private BundleContentsComponent bundleContents;
+	private BundleContentsComponent field_49537;
 
 	@Shadow
 	protected abstract void drawSlot(int x, int y, int index, boolean shouldBlock, DrawContext context,
@@ -33,7 +33,7 @@ abstract class BundleTooltipComponentMixin implements TooltipComponent {
 
 	@Unique
 	private int size() {
-		return this.bundleContents.size() + 1;
+		return this.field_49537.size() + 1;
 	}
 
 	@ModifyReturnValue(method = "getColumns", at = @At("RETURN"))
@@ -58,7 +58,7 @@ abstract class BundleTooltipComponentMixin implements TooltipComponent {
 
 	@Inject(method = "drawItems", at = @At("HEAD"), cancellable = true)
 	private void handleSpecialNumbers(TextRenderer textRenderer, int x, int y, DrawContext context, CallbackInfo ci) {
-		boolean full = this.bundleContents.getOccupancy().compareTo(Fraction.ONE) >= 0;
+		boolean full = this.field_49537.getOccupancy().compareTo(Fraction.ONE) >= 0;
 
 		if (SquarePackingRendering.tryDrawSpecial(
 				size(),
