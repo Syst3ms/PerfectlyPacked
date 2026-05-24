@@ -80,11 +80,7 @@ modrinth {
     gameVersions = ["26.1", "26.1.1", "26.1.2"]
     versionType = "alpha"
     uploadFile = jar
-    changelog = """- Ported to 26.1
-        - Added a configuration through [YACL](https://modrinth.com/mod/yacl), along with a GUI if [Mod Menu](https://modrinth.com/mod/modmenu) is installed.
-        TODO:
-        - Update packings of 28, 29, 39, 41, 50, 51, 53 and 55 squares to their improved versions
-        - Add packings for sizes up to 99 to support larger max stack sizes""".stripIndent()
+    changelog = """Bumped version number to avoid confusion with previous version""".stripIndent()
     dependencies {
         required.project "yacl"
         optional.project "modmenu"
