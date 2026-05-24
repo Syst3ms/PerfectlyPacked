@@ -2,9 +2,10 @@
   "required": true,
   "minVersion": "0.8",
   "package": "io.github.syst3ms.perfectlypacked.client.mixin",
-  "compatibilityLevel": "JAVA_21",
+  "compatibilityLevel": "JAVA_25",
   "client": [
-    "BundleTooltipComponentMixin"
+    "ClientBundleTooltipMixin",
+    "BundleMouseActionsMixin"
   ],
   "injectors": {
     "defaultRequire": 1

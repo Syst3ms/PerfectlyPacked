@@ -1,0 +1,39 @@
+{
+    "perfectlypacked.config.title": "Perfectly Packed %s",
+    "perfectlypacked.config.category.title": "Perfectly Packed",
+    "perfectlypacked.config.category.description": "Settings for Perfectly Packed",
+
+    "perfectlypacked.config.group.packing": "Packing Settings",
+
+    "perfectlypacked.config.maxVanillaSlots": "Max displayed slots (vanilla rendering)",
+    "perfectlypacked.config.maxVanillaSlots.description_0": "When using vanilla rendering, the maximum number of slots that will be displayed in the bundle tooltip.",
+    "perfectlypacked.config.maxVanillaSlots.description_1": "This includes the \"+<number>\" with the number of items remaining. Defaults to 12.",
+
+    "perfectlypacked.config.maxCustomPackingSize": "Max custom packing size",
+    "perfectlypacked.config.maxCustomPackingSize.description_0": "Maximum number of items for which custom packings will be displayed.",
+    "perfectlypacked.config.maxCustomPackingSize.description_1": "Above this number, Minecraft's default rendering will be used.",
+    "perfectlypacked.config.maxCustomPackingSize.description_2": "Defaults to always use custom packings.",
+
+    "perfectlypacked.config.trivialPackingRendering": "Trivial packing rendering",
+    "perfectlypacked.config.trivialPackingRendering.rectangular": "Rectangular",
+    "perfectlypacked.config.trivialPackingRendering.vanilla": "Vanilla",
+    "perfectlypacked.config.trivialPackingRendering.description_0": "How to render numbers of slots that can't be arranged more efficiently than in a rectangular grid.",
+    "perfectlypacked.config.trivialPackingRendering.description_1": "%s: render all items in a rectangular grid (default).",
+    "perfectlypacked.config.trivialPackingRendering.description_2": "%s: render like a vanilla bundle.",
+
+    "perfectlypacked.config.group.rendering": "Rendering Settings",
+    "perfectlypacked.config.group.rendering.description": "Options for fine-tuning graphical rendering. These don't need to be changed unless a resource pack modifies bundle sprites.",
+
+    "perfectlypacked.config.slotSize": "Slot size",
+    "perfectlypacked.config.slotSize.description_0": "The size of bundle slots, in pixels. Defaults to %d.",
+    "perfectlypacked.config.slotSize.description_1": "Must be equal to the size of the %s, %s and %s sprites.",
+    "perfectlypacked.config.padding": "Slot Padding size",
+    "perfectlypacked.config.padding.description_1": "How many pixels of padding Perfectly Packed should use relative to the bundle slot size.",
+    "perfectlypacked.config.padding.description_2": "This may be negative, for example if the slot textures are graphically smaller than slot sizes.",
+    "perfectlypacked.config.padding.description_3": "Set to -3 by default to account for this issue in vanilla.",
+    "perfectlypacked.config.padding.description_4": "May not exceed half the size of any of ",
+
+    "modmenu.nameTranslation.perfectlypacked": "Perfectly Packed",
+    "modmenu.summaryTranslation.perfectlypacked": "Optimize graphical space in bundles with the best of square-packing technology!",
+    "modmenu.descriptionTranslation.perfectlypacked": "Bundles are a great way to save up inventory space, but they forgot about preserving something else: graphical space.\nGUIs can get busy, and so it is important to save as much space as possible.\n To this end, we have employed the very best in square packing technology to make sure all of your item slots take as little space as possible."
+}

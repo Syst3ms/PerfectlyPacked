@@ -1,1707 +1,1692 @@
 package io.github.syst3ms.perfectlypacked.client;
 
-import org.joml.Matrix4f;
-import org.joml.Quaternionf;
+import it.unimi.dsi.fastutil.ints.IntSet;
+import net.minecraft.util.Mth;
+import org.joml.Matrix3x2f;
+import org.joml.Matrix3x2fStack;
 
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.util.math.RotationAxis;
+import java.util.function.IntSupplier;
 
 public class SquarePackingRendering {
-	public static final int SLOT_SIZE = 18;
+	public static IntSet SPECIAL_SLOT_COUNTS = IntSet.of(
+		5, 10, 11, 17, 18, 19, 26, 27, 28, 29, 37, 38, 39, 40, 41,
+		50, 51, 52, 53, 54, 55//, 65
+	);
 
-	public static int trivialPackingSide(int n) {
+	public static int trivialPackingWidth(int n) {
 		return (int) Math.ceil(Math.sqrt(n));
 	}
 
-	public static int getSquareSize(int n) {
-		return getSquareSize(n, SLOT_SIZE);
+	public static int trivialPackingHeight(int n) {
+		return Mth.positiveCeilDiv(n, trivialPackingWidth(n));
 	}
 
-	public static int getSquareSize(int n, int trivialRowHeight) {
+	public static int getSquareSize(int slotSize, int n, IntSupplier def) {
 		return (int) switch (n) {
-			case 5 -> Math.ceil(SLOT_SIZE * 2.70710678f);
-			case 10 -> Math.ceil(SLOT_SIZE * 3.70710678f);
-			case 11 -> Math.ceil(SLOT_SIZE * 3.87708359f);
-			case 17 -> Math.ceil(SLOT_SIZE * 4.67553009f);
-			case 18 -> Math.ceil(SLOT_SIZE * 4.82287565f);
-			case 19 -> Math.ceil(SLOT_SIZE * 4.88561808f);
-			case 26 -> Math.ceil(SLOT_SIZE * 5.62132034f);
-			case 27 -> Math.ceil(SLOT_SIZE * 5.70710678f);
-			case 28 -> Math.ceil(SLOT_SIZE * 5.82842712f);
-			case 29 -> Math.ceil(SLOT_SIZE * 5.93434180f);
-			case 37 -> Math.ceil(SLOT_SIZE * 6.59861960f);
-			case 38 -> Math.ceil(SLOT_SIZE * 6.70710678f);
-			case 39 -> Math.ceil(SLOT_SIZE * 6.81880916f);
-			case 40 -> Math.ceil(SLOT_SIZE * 6.82287565f);
-			case 41 -> Math.ceil(SLOT_SIZE * 6.93786550f);
-			case 50 -> Math.ceil(SLOT_SIZE * 7.59861960f);
-			case 51 -> Math.ceil(SLOT_SIZE * 7.70435372f);
-			case 52 -> Math.ceil(SLOT_SIZE * 7.70710678f);
-			case 53 -> Math.ceil(SLOT_SIZE * 7.82303789f);
-			case 54 -> Math.ceil(SLOT_SIZE * 7.84666719f);
-			case 55 -> Math.ceil(SLOT_SIZE * 7.95424222f);
-			case 65 -> Math.ceil(SLOT_SIZE * 8.53553390f);
-			default -> trivialPackingSide(n) * trivialRowHeight;
+			case 5 -> Math.ceil(slotSize * 2.70710678f);
+			case 10 -> Math.ceil(slotSize * 3.70710678f);
+			case 11 -> Math.ceil(slotSize * 3.87708359f);
+			case 17 -> Math.ceil(slotSize * 4.67553009f);
+			case 18 -> Math.ceil(slotSize * 4.82287565f);
+			case 19 -> Math.ceil(slotSize * 4.88561808f);
+			case 26 -> Math.ceil(slotSize * 5.62132034f);
+			case 27 -> Math.ceil(slotSize * 5.70710678f);
+			case 28 -> Math.ceil(slotSize * 5.82842712f);
+			case 29 -> Math.ceil(slotSize * 5.93434180f);
+			case 37 -> Math.ceil(slotSize * 6.59861960f);
+			case 38 -> Math.ceil(slotSize * 6.70710678f);
+			case 39 -> Math.ceil(slotSize * 6.81880916f);
+			case 40 -> Math.ceil(slotSize * 6.82287565f);
+			case 41 -> Math.ceil(slotSize * 6.93786550f);
+			case 50 -> Math.ceil(slotSize * 7.59861960f);
+			case 51 -> Math.ceil(slotSize * 7.70435372f);
+			case 52 -> Math.ceil(slotSize * 7.70710678f);
+			case 53 -> Math.ceil(slotSize * 7.82303789f);
+			case 54 -> Math.ceil(slotSize * 7.84666719f);
+			case 55 -> Math.ceil(slotSize * 7.95424222f);
+			// case 65 -> Math.ceil(slotSize * 8.53553390f);
+			default -> def.getAsInt();
 		};
 	}
-	
-	@FunctionalInterface
-	public interface Background {
-		void drawBackground(int size);
+
+	public static int getSpecialSquareSize(int slotSize, int n) {
+		return getSquareSize(slotSize, n, () -> {throw new IllegalStateException();});
 	}
-	
+
+	public static int getWidth(int slotSize, int n) {
+		return getSquareSize(slotSize, n, () -> slotSize * trivialPackingWidth(n));
+	}
+
+	public static int getHeight(int slotSize, int n) {
+		return getSquareSize(slotSize, n, () -> slotSize * trivialPackingHeight(n));
+	}
+
 	@FunctionalInterface
 	public interface Slots {
 		void drawSlot(int x, int y, int index);
 	}
 
-	public static boolean tryDrawSpecial(int n, Background bgDrawer, Slots drawer, int x, int y, MatrixStack matrices) {
+	public static void drawSpecial(int n, int slotSize, Slots drawer, int x, int y, Matrix3x2fStack pose) {
 		switch (n) {
-			case 5 -> drawFive(bgDrawer, drawer, x, y, matrices);
-			case 10 -> drawTen(bgDrawer, drawer, x, y, matrices);
-			case 11 -> drawEleven(bgDrawer, drawer, x, y, matrices);
-			case 17 -> drawSeventeen(bgDrawer, drawer, x, y, matrices);
-			case 18 -> drawEighteen(bgDrawer, drawer, x, y, matrices);
-			case 19 -> drawNineteen(bgDrawer, drawer, x, y, matrices);
-			case 26 -> drawTwentySix(bgDrawer, drawer, x, y, matrices);
-			case 27 -> drawTwentySeven(bgDrawer, drawer, x, y, matrices);
-			case 28 -> drawTwentyEight(bgDrawer, drawer, x, y, matrices);
-			case 29 -> drawTwentyNine(bgDrawer, drawer, x, y, matrices);
-			case 37 -> drawThirtySeven(bgDrawer, drawer, x, y, matrices);
-			case 38 -> drawThirtyEight(bgDrawer, drawer, x, y, matrices);
-			case 39 -> drawThirtyNine(bgDrawer, drawer, x, y, matrices);
-			case 40 -> drawForty(bgDrawer, drawer, x, y, matrices);
-			case 41 -> drawFortyOne(bgDrawer, drawer, x, y, matrices);
-			case 50 -> drawFifty(bgDrawer, drawer, x, y, matrices);
-			case 51 -> drawFiftyOne(bgDrawer, drawer, x, y, matrices);
-			case 52 -> drawFiftyTwo(bgDrawer, drawer, x, y, matrices);
-			case 53 -> drawFiftyThree(bgDrawer, drawer, x, y, matrices);
-			case 54 -> drawFiftyFour(bgDrawer, drawer, x, y, matrices);
-			case 55 -> drawFiftyFive(bgDrawer, drawer, x, y, matrices);
-			case 65 -> drawSixtyFive(bgDrawer, drawer, x, y, matrices);
-			default -> {
-				return false;
-			}
+			case 5 -> drawFive(slotSize, drawer, x, y, pose);
+			case 10 -> drawTen(slotSize, drawer, x, y, pose);
+			case 11 -> drawEleven(slotSize, drawer, x, y, pose);
+			case 17 -> drawSeventeen(slotSize, drawer, x, y, pose);
+			case 18 -> drawEighteen(slotSize, drawer, x, y, pose);
+			case 19 -> drawNineteen(slotSize, drawer, x, y, pose);
+			case 26 -> drawTwentySix(slotSize, drawer, x, y, pose);
+			case 27 -> drawTwentySeven(slotSize, drawer, x, y, pose);
+			case 28 -> drawTwentyEight(slotSize, drawer, x, y, pose);
+			case 29 -> drawTwentyNine(slotSize, drawer, x, y, pose);
+			case 37 -> drawThirtySeven(slotSize, drawer, x, y, pose);
+			case 38 -> drawThirtyEight(slotSize, drawer, x, y, pose);
+			case 39 -> drawThirtyNine(slotSize, drawer, x, y, pose);
+			case 40 -> drawForty(slotSize, drawer, x, y, pose);
+			case 41 -> drawFortyOne(slotSize, drawer, x, y, pose);
+			case 50 -> drawFifty(slotSize, drawer, x, y, pose);
+			case 51 -> drawFiftyOne(slotSize, drawer, x, y, pose);
+			case 52 -> drawFiftyTwo(slotSize, drawer, x, y, pose);
+			case 53 -> drawFiftyThree(slotSize, drawer, x, y, pose);
+			case 54 -> drawFiftyFour(slotSize, drawer, x, y, pose);
+			case 55 -> drawFiftyFive(slotSize, drawer, x, y, pose);
+			// case 65 -> drawSixtyFive(slotSize, drawer, x, y, pose);
 		}
-
-		return true;
 	}
 
-	public static void drawFive(Background bgDrawer, Slots drawer, int x, int y, MatrixStack matrices) {
-		bgDrawer.drawBackground(getSquareSize(5) + 2);
+	public static void drawFive(int slotSize, Slots drawer, int x, int y, Matrix3x2fStack pose) {
 		x++;
 		y++;
 
-		int straightOffset = 31;
+		int straightOffset = Mth.ceil(slotSize * 1.70710678f);
 		drawer.drawSlot(x, y, 0);
 		drawer.drawSlot(x + straightOffset, y, 1);
-
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE, y + SLOT_SIZE, 0);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(45));
-		matrices.translate(0f, SLOT_SIZE * -0.5f, 0f);
+		
+		pose.pushMatrix();
+		pose.translate(x + slotSize, y + slotSize);
+		pose.rotate(Mth.DEG_TO_RAD * 45);
+		pose.translate(0f, slotSize * -0.5f);
 		drawer.drawSlot(0, 0, 2);
-		matrices.pop();
+		pose.popMatrix();
 
 		drawer.drawSlot(x, y + straightOffset, 3);
 		drawer.drawSlot(x + straightOffset, y + straightOffset, 4);
 	}
 
-	public static void drawTen(Background bgDrawer, Slots drawer, int x, int y, MatrixStack matrices) {
+	public static void drawTen(int slotSize, Slots drawer, int x, int y, Matrix3x2fStack pose) {
 		int i = 0;
-		int gap = 31;
-		bgDrawer.drawBackground(getSquareSize(10) + 2);
+		int gap = Mth.ceil(slotSize * 1.70710678f);
 		x++;
 		y++;
 		
 		drawer.drawSlot(x, y, i++);
 		drawer.drawSlot(x + gap, y, i++);
-		drawer.drawSlot(x + gap + SLOT_SIZE, y, i++);
-		drawer.drawSlot(x, y + SLOT_SIZE, i++);
-		drawer.drawSlot(x + gap, y + SLOT_SIZE, i++);
-		drawer.drawSlot(x + gap + SLOT_SIZE, y + SLOT_SIZE, i++);
+		drawer.drawSlot(x + gap + slotSize, y, i++);
+		drawer.drawSlot(x, y + slotSize, i++);
+		drawer.drawSlot(x + gap, y + slotSize, i++);
+		drawer.drawSlot(x + gap + slotSize, y + slotSize, i++);
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE, y + SLOT_SIZE * 2, 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(45));
-		matrices.translate(0, -SLOT_SIZE/2f, 0);
+		pose.pushMatrix();
+		pose.translate(x + slotSize, y + slotSize * 2);
+		pose.rotate(Mth.DEG_TO_RAD * 45);
+		pose.translate(0, -slotSize/2f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		drawer.drawSlot(x, y + SLOT_SIZE + gap, i++);
-		drawer.drawSlot(x + gap, y + SLOT_SIZE + gap, i++);
-		drawer.drawSlot(x + gap + SLOT_SIZE, y + SLOT_SIZE + gap, i);
+		drawer.drawSlot(x, y + slotSize + gap, i++);
+		drawer.drawSlot(x + gap, y + slotSize + gap, i++);
+		drawer.drawSlot(x + gap + slotSize, y + slotSize + gap, i);
 	}
 
-	public static void drawEleven(Background bgDrawer, Slots drawer, int x, int y, MatrixStack matrices) {
+	public static void drawEleven(int slotSize, Slots drawer, int x, int y, Matrix3x2fStack pose) {
 		int i = 0;
-		int squareSize = getSquareSize(11);
-		bgDrawer.drawBackground(squareSize + 2);
+		int squareSize = getSpecialSquareSize(slotSize, 11);
 		x++;
 		y++;
 		drawer.drawSlot(x, y, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y, i++);
 
-		Matrix4f baseTransform;
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE, y + SLOT_SIZE, 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(40.18193729f));
-		matrices.translate(0f, SLOT_SIZE * -0.32990859f, 0f);
-		baseTransform = new Matrix4f(matrices.peek().getPositionMatrix());
-		matrices.translate(SLOT_SIZE * .02487453f, -SLOT_SIZE, 0f);
+		Matrix3x2f baseTransform;
+		pose.pushMatrix();
+		pose.translate(x + slotSize, y + slotSize);
+		pose.rotate(Mth.DEG_TO_RAD * 40.18193729f);
+		pose.translate(0f, slotSize * -0.32990859f);
+		baseTransform = new Matrix3x2f(pose);
+		pose.translate(slotSize * .02487453f, -slotSize);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, SLOT_SIZE * 0.11878261f, 0f);
+		pose.translate(slotSize, slotSize * 0.11878261f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, SLOT_SIZE * 0.33377596f, 0f);
+		pose.translate(slotSize, slotSize * 0.33377596f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
+		
+		pose.pushMatrix();
+		pose.mul(baseTransform);
+		drawer.drawSlot(0, 0, i++);
+		pose.translate(slotSize, slotSize * 0.11878260f);
+		drawer.drawSlot(0, 0, i++);
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.multiplyPositionMatrix(baseTransform);
-		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, SLOT_SIZE * 0.11878260f, 0f);
-		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		drawer.drawSlot(x, y + squareSize - slotSize * 2, i++);
+		drawer.drawSlot(x, y + squareSize - slotSize, i++);
+		drawer.drawSlot(x + slotSize, y + squareSize - slotSize, i++);
 
-		drawer.drawSlot(x, y + squareSize - SLOT_SIZE * 2, i++);
-		drawer.drawSlot(x, y + squareSize - SLOT_SIZE, i++);
-		drawer.drawSlot(x + SLOT_SIZE, y + squareSize - SLOT_SIZE, i++);
-
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 2.03255831f, y + SLOT_SIZE * 2.87708359f, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 2.03255831f, y + slotSize * 2.87708359f);
 		drawer.drawSlot(0, 0, i);
-		matrices.pop();
+		pose.popMatrix();
 	}
 
-	public static void drawSeventeen(Background bgDrawer, Slots drawer, int x, int y, MatrixStack matrices) {
+	public static void drawSeventeen(int slotSize, Slots drawer, int x, int y, Matrix3x2fStack pose) {
 		int i = 0;
 		float normSize = 4.67553009f;
-		int squareSize = getSquareSize(17);
-		bgDrawer.drawBackground(squareSize + 2);
+		int squareSize = getSpecialSquareSize(slotSize, 17);
 		x++;
 		y++;
 		drawer.drawSlot(x, y, i++);
-		drawer.drawSlot(x + SLOT_SIZE, y, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE * 2, y, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y, i++);
-		drawer.drawSlot(x, y + SLOT_SIZE, i++);
+		drawer.drawSlot(x + slotSize, y, i++);
+		drawer.drawSlot(x + squareSize - slotSize * 2, y, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y, i++);
+		drawer.drawSlot(x, y + slotSize, i++);
 
-		Matrix4f baseTransform;
+		Matrix3x2f baseTransform;
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 0.64017619f, y + SLOT_SIZE * 2, 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(39.80495897f));
-		baseTransform = new Matrix4f(matrices.peek().getPositionMatrix());
-		matrices.translate(SLOT_SIZE * 0.40447869f, SLOT_SIZE * -2, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 0.64017619f, y + slotSize * 2);
+		pose.rotate(Mth.DEG_TO_RAD * 39.80495897f);
+		baseTransform = new Matrix3x2f(pose);
+		pose.translate(slotSize * 0.40447869f, slotSize * -2);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y + SLOT_SIZE, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y + slotSize, i++);
 
-		matrices.push();
-		matrices.multiplyPositionMatrix(baseTransform);
-		matrices.translate(SLOT_SIZE * 0.27642676f, -SLOT_SIZE, 0f);
+		pose.pushMatrix();
+		pose.mul(baseTransform);
+		pose.translate(slotSize * 0.27642676f, -slotSize);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.multiplyPositionMatrix(baseTransform);
-		matrices.translate(SLOT_SIZE * 1.40447869f, SLOT_SIZE * -1.94316130f, 0f);
+		pose.pushMatrix();
+		pose.mul(baseTransform);
+		pose.translate(slotSize * 1.40447869f, slotSize * -1.94316130f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.multiplyPositionMatrix(baseTransform);
+		pose.pushMatrix();
+		pose.mul(baseTransform);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.multiplyPositionMatrix(baseTransform);
-		matrices.translate(SLOT_SIZE * 1.27642676f, SLOT_SIZE * -0.94316130, 0f);
+		pose.pushMatrix();
+		pose.mul(baseTransform);
+		pose.translate(slotSize * 1.27642676f, slotSize * -0.94316130f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * (normSize - 1), y + SLOT_SIZE * 2.11346013f, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * (normSize - 1), y + slotSize * 2.11346013f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.multiplyPositionMatrix(baseTransform);
-		matrices.translate(SLOT_SIZE, SLOT_SIZE * 0.05683896f, 0f);
+		pose.pushMatrix();
+		pose.mul(baseTransform);
+		pose.translate(slotSize, slotSize * 0.05683896f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 2.84732482f, y + SLOT_SIZE * (normSize - 1), 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(-36.62378638f));
-		matrices.translate(0f, SLOT_SIZE * -0.50592742f, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 2.84732482f, y + slotSize * (normSize - 1));
+		pose.rotate(Mth.DEG_TO_RAD * -36.62378638f);
+		pose.translate(0f, slotSize * -0.50592742f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		drawer.drawSlot(x, y + squareSize - SLOT_SIZE, i++);
-		drawer.drawSlot(x + (int) Math.ceil(SLOT_SIZE * 1.84732482f), y + squareSize - SLOT_SIZE, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y + squareSize - SLOT_SIZE, i);
+		drawer.drawSlot(x, y + squareSize - slotSize, i++);
+		drawer.drawSlot(x + (int) Math.ceil(slotSize * 1.84732482f), y + squareSize - slotSize, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y + squareSize - slotSize, i);
 	}
 
-	public static void drawEighteen(Background bgDrawer, Slots drawer, int x, int y, MatrixStack matrices) {
+	public static void drawEighteen(int slotSize, Slots drawer, int x, int y, Matrix3x2fStack pose) {
 		int i = 0;
-		int squareSize = getSquareSize(18);
-		bgDrawer.drawBackground(squareSize + 2);
+		int squareSize = getSpecialSquareSize(slotSize, 18);
 		x++;
 		y++;
 		drawer.drawSlot(x, y, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE * 3, y, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE * 2, y, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y, i++);
-		drawer.drawSlot(x, y + SLOT_SIZE, i++);
+		drawer.drawSlot(x + squareSize - slotSize * 3, y, i++);
+		drawer.drawSlot(x + squareSize - slotSize * 2, y, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y, i++);
+		drawer.drawSlot(x, y + slotSize, i++);
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 1.51429728f, y + SLOT_SIZE * 0.86070271f, 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(24.29518894f));
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 1.51429728f, y + slotSize * 0.86070271f);
+		pose.rotate(Mth.DEG_TO_RAD * 24.29518894f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		drawer.drawSlot(x + squareSize - SLOT_SIZE * 2, y + SLOT_SIZE, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y + SLOT_SIZE, i++);
+		drawer.drawSlot(x + squareSize - slotSize * 2, y + slotSize, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y + slotSize, i++);
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 1.51429728f, y + SLOT_SIZE * 0.86070271f, 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(24.29518894f));
-		matrices.translate(0, SLOT_SIZE, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 1.51429728f, y + slotSize * 0.86070271f);
+		pose.rotate(Mth.DEG_TO_RAD * 24.29518894f);
+		pose.translate(0, slotSize);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 2.30857837f, y + SLOT_SIZE * 3.96217294f, 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(24.29518894f));
-		matrices.translate(-SLOT_SIZE, SLOT_SIZE * -2, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 2.30857837f, y + slotSize * 3.96217294f);
+		pose.rotate(Mth.DEG_TO_RAD * 24.29518894f);
+		pose.translate(-slotSize, slotSize * -2);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		drawer.drawSlot(x, y + squareSize - SLOT_SIZE * 2, i++);
+		drawer.drawSlot(x, y + squareSize - slotSize * 2, i++);
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 2.30857837f, y + SLOT_SIZE * 3.96217294f, 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(24.29518894f));
-		matrices.translate(-SLOT_SIZE, -SLOT_SIZE, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 2.30857837f, y + slotSize * 3.96217294f);
+		pose.rotate(Mth.DEG_TO_RAD * 24.29518894f);
+		pose.translate(-slotSize, -slotSize);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		drawer.drawSlot(x + squareSize - SLOT_SIZE * 2, y + squareSize - SLOT_SIZE * 2, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y + squareSize - SLOT_SIZE * 2, i++);
-		drawer.drawSlot(x, y + squareSize - SLOT_SIZE, i++);
-		drawer.drawSlot(x + SLOT_SIZE, y + squareSize - SLOT_SIZE, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE * 2, y + squareSize - SLOT_SIZE, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y + squareSize - SLOT_SIZE, i);
+		drawer.drawSlot(x + squareSize - slotSize * 2, y + squareSize - slotSize * 2, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y + squareSize - slotSize * 2, i++);
+		drawer.drawSlot(x, y + squareSize - slotSize, i++);
+		drawer.drawSlot(x + slotSize, y + squareSize - slotSize, i++);
+		drawer.drawSlot(x + squareSize - slotSize * 2, y + squareSize - slotSize, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y + squareSize - slotSize, i);
 	}
 
-	public static void drawNineteen(Background bgDrawer, Slots drawer, int x, int y, MatrixStack matrices) {
+	public static void drawNineteen(int slotSize, Slots drawer, int x, int y, Matrix3x2fStack pose) {
 		int i = 0;
 		float normSize = 4.88561808f;
-		int squareSize = getSquareSize(19);
-		bgDrawer.drawBackground(squareSize + 2);
+		int squareSize = getSpecialSquareSize(slotSize, 19);
 		x++;
 		y++;
 		
 		drawer.drawSlot(x, y, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE * 3, y, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE * 2, y, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y, i++);
+		drawer.drawSlot(x + squareSize - slotSize * 3, y, i++);
+		drawer.drawSlot(x + squareSize - slotSize * 2, y, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y, i++);
 
-		Matrix4f baseTransform;
+		Matrix3x2f baseTransform;
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * (normSize / 2f - 1), y + SLOT_SIZE * (3 - normSize / 2f), 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(45));
-		baseTransform = new Matrix4f(matrices.peek().getPositionMatrix());
+		pose.pushMatrix();
+		pose.translate(x + slotSize * (normSize / 2f - 1), y + slotSize * (3 - normSize / 2f));
+		pose.rotate(Mth.DEG_TO_RAD * 45);
+		baseTransform = new Matrix3x2f(pose);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(0f, SLOT_SIZE, 0f);
+		pose.translate(0f, slotSize);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.multiplyPositionMatrix(baseTransform);
-		matrices.translate(SLOT_SIZE, SLOT_SIZE * -0.04044011f, 0f);
+		pose.pushMatrix();
+		pose.mul(baseTransform);
+		pose.translate(slotSize, slotSize * -0.04044011f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		drawer.drawSlot(x + squareSize - SLOT_SIZE * 2, y + SLOT_SIZE, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y + SLOT_SIZE, i++);
+		drawer.drawSlot(x + squareSize - slotSize * 2, y + slotSize, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y + slotSize, i++);
 
-		matrices.push();
-		matrices.multiplyPositionMatrix(baseTransform);
-		matrices.translate(SLOT_SIZE, SLOT_SIZE * 0.95955989f, 0f);
+		pose.pushMatrix();
+		pose.mul(baseTransform);
+		pose.translate(slotSize, slotSize * 0.95955989f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 3 * (normSize / 2f - 1), y + SLOT_SIZE * (normSize / 2f + 1), 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(45));
-		matrices.translate(SLOT_SIZE * -2, SLOT_SIZE * -0.04044011f, 0f);
-		baseTransform = new Matrix4f(matrices.peek().getPositionMatrix());
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 3 * (normSize / 2f - 1), y + slotSize * (normSize / 2f + 1));
+		pose.rotate(Mth.DEG_TO_RAD * 45);
+		pose.translate(slotSize * -2, slotSize * -0.04044011f);
+		baseTransform = new Matrix3x2f(pose);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y + SLOT_SIZE * 2, i++);
-		drawer.drawSlot(x, y + squareSize - SLOT_SIZE * 2, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y + slotSize * 2, i++);
+		drawer.drawSlot(x, y + squareSize - slotSize * 2, i++);
 
-		matrices.push();
-		matrices.multiplyPositionMatrix(baseTransform);
-		matrices.translate(0f, SLOT_SIZE, 0f);
+		pose.pushMatrix();
+		pose.mul(baseTransform);
+		pose.translate(0f, slotSize);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, SLOT_SIZE * -0.95955989f, 0f);
+		pose.translate(slotSize, slotSize * -0.95955989f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		drawer.drawSlot(x, y + squareSize - SLOT_SIZE, i++);
-		drawer.drawSlot(x + SLOT_SIZE, y + squareSize - SLOT_SIZE, i++);
+		drawer.drawSlot(x, y + squareSize - slotSize, i++);
+		drawer.drawSlot(x + slotSize, y + squareSize - slotSize, i++);
 
-		matrices.push();
-		matrices.multiplyPositionMatrix(baseTransform);
-		matrices.translate(SLOT_SIZE, SLOT_SIZE * 1.04044011f, 0f);
+		pose.pushMatrix();
+		pose.mul(baseTransform);
+		pose.translate(slotSize, slotSize * 1.04044011f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y + squareSize - SLOT_SIZE, i);
+		drawer.drawSlot(x + squareSize - slotSize, y + squareSize - slotSize, i);
 	}
 
-	public static void drawTwentySix(Background bgDrawer, Slots drawer, int x, int y, MatrixStack matrices) {
+	public static void drawTwentySix(int slotSize, Slots drawer, int x, int y, Matrix3x2fStack pose) {
 		int i = 0;
 		float normSize = 5.62132034f;
-		int squareSize = getSquareSize(26);
-		bgDrawer.drawBackground(squareSize + 2);
+		int squareSize = getSpecialSquareSize(slotSize, 26);
 		x++;
 		y++;
 
 		drawer.drawSlot(x, y, i++);
-		drawer.drawSlot(x + SLOT_SIZE, y, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE * 3, y, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE * 2, y, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y, i++);
-		drawer.drawSlot(x, y + SLOT_SIZE, i++);
+		drawer.drawSlot(x + slotSize, y, i++);
+		drawer.drawSlot(x + squareSize - slotSize * 3, y, i++);
+		drawer.drawSlot(x + squareSize - slotSize * 2, y, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y, i++);
+		drawer.drawSlot(x, y + slotSize, i++);
 
-		Matrix4f baseTransform;
+		Matrix3x2f baseTransform;
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * (normSize - 1) / 2, y + SLOT_SIZE * normSize / 2, 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(45));
-		matrices.translate(SLOT_SIZE * -1.5f, SLOT_SIZE * -1.5f, 0f);
-		baseTransform = new Matrix4f(matrices.peek().getPositionMatrix());
+		pose.pushMatrix();
+		pose.translate(x + slotSize * (normSize - 1) / 2, y + slotSize * normSize / 2);
+		pose.rotate(Mth.DEG_TO_RAD * 45);
+		pose.translate(slotSize * -1.5f, slotSize * -1.5f);
+		baseTransform = new Matrix3x2f(pose);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		drawer.drawSlot(x + squareSize - SLOT_SIZE * 2, y + SLOT_SIZE, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y + SLOT_SIZE, i++);
+		drawer.drawSlot(x + squareSize - slotSize * 2, y + slotSize, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y + slotSize, i++);
 
-		matrices.push();
-		matrices.multiplyPositionMatrix(baseTransform);
-		matrices.translate(0f, SLOT_SIZE, 0f);
+		pose.pushMatrix();
+		pose.mul(baseTransform);
+		pose.translate(0f, slotSize);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, -SLOT_SIZE, 0f);
+		pose.translate(slotSize, -slotSize);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(-SLOT_SIZE, SLOT_SIZE * 2, 0f);
+		pose.translate(-slotSize, slotSize * 2);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, -SLOT_SIZE, 0f);
+		pose.translate(slotSize, -slotSize);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, -SLOT_SIZE, 0f);
+		pose.translate(slotSize, -slotSize);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y + squareSize / 2 - SLOT_SIZE / 2, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y + squareSize / 2 - slotSize / 2, i++);
 
-		matrices.push();
-		matrices.multiplyPositionMatrix(baseTransform);
-		matrices.translate(SLOT_SIZE, SLOT_SIZE * 2, 0f);
+		pose.pushMatrix();
+		pose.mul(baseTransform);
+		pose.translate(slotSize, slotSize * 2);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, -SLOT_SIZE, 0f);
+		pose.translate(slotSize, -slotSize);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		drawer.drawSlot(x, y + squareSize - SLOT_SIZE * 2, i++);
+		drawer.drawSlot(x, y + squareSize - slotSize * 2, i++);
 
-		matrices.push();
-		matrices.multiplyPositionMatrix(baseTransform);
-		matrices.translate(SLOT_SIZE * 2, SLOT_SIZE * 2, 0f);
+		pose.pushMatrix();
+		pose.mul(baseTransform);
+		pose.translate(slotSize * 2, slotSize * 2);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		drawer.drawSlot(x + squareSize - SLOT_SIZE * 2, y + squareSize - SLOT_SIZE * 2, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y + squareSize - SLOT_SIZE * 2, i++);
-		drawer.drawSlot(x, y + squareSize - SLOT_SIZE, i++);
-		drawer.drawSlot(x + SLOT_SIZE, y + squareSize - SLOT_SIZE, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE * 3, y + squareSize - SLOT_SIZE, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE * 2, y + squareSize - SLOT_SIZE, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y + squareSize - SLOT_SIZE, i);
+		drawer.drawSlot(x + squareSize - slotSize * 2, y + squareSize - slotSize * 2, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y + squareSize - slotSize * 2, i++);
+		drawer.drawSlot(x, y + squareSize - slotSize, i++);
+		drawer.drawSlot(x + slotSize, y + squareSize - slotSize, i++);
+		drawer.drawSlot(x + squareSize - slotSize * 3, y + squareSize - slotSize, i++);
+		drawer.drawSlot(x + squareSize - slotSize * 2, y + squareSize - slotSize, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y + squareSize - slotSize, i);
 	}
 
-	public static void drawTwentySeven(Background bgDrawer, Slots drawer, int x, int y, MatrixStack matrices) {
+	public static void drawTwentySeven(int slotSize, Slots drawer, int x, int y, Matrix3x2fStack pose) {
 		int i = 0;
-		var fiveOffset = (int) Math.floor(SLOT_SIZE * 1.70710678f);
-		int squareSize = getSquareSize(27);
-		bgDrawer.drawBackground(squareSize + 2);
+		var fiveOffset = (int) Math.floor(slotSize * 1.70710678f);
+		int squareSize = getSpecialSquareSize(slotSize, 27);
 		x++;
 		y++;
 
 		drawer.drawSlot(x, y, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE * 4, y, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE * 3, y, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE * 2, y, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y, i++);
+		drawer.drawSlot(x + squareSize - slotSize * 4, y, i++);
+		drawer.drawSlot(x + squareSize - slotSize * 3, y, i++);
+		drawer.drawSlot(x + squareSize - slotSize * 2, y, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y, i++);
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE, y + SLOT_SIZE, 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(45));
-		matrices.translate(0f, SLOT_SIZE * -0.5f, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize, y + slotSize);
+		pose.rotate(Mth.DEG_TO_RAD * 45);
+		pose.translate(0f, slotSize * -0.5f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		drawer.drawSlot(x + squareSize - SLOT_SIZE * 3, y + SLOT_SIZE, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE * 2, y + SLOT_SIZE, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y + SLOT_SIZE, i++);
+		drawer.drawSlot(x + squareSize - slotSize * 3, y + slotSize, i++);
+		drawer.drawSlot(x + squareSize - slotSize * 2, y + slotSize, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y + slotSize, i++);
 		drawer.drawSlot(x, y + fiveOffset, i++);
 		drawer.drawSlot(x + fiveOffset, y + fiveOffset, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE * 2, y + SLOT_SIZE * 2, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y + SLOT_SIZE * 2, i++);
-		drawer.drawSlot(x, y + squareSize - SLOT_SIZE * 3, i++);
-		drawer.drawSlot(x + SLOT_SIZE, y + squareSize - SLOT_SIZE * 3, i++);
-		drawer.drawSlot(x + SLOT_SIZE * 2, y + squareSize - SLOT_SIZE * 3, i++);
-		drawer.drawSlot(x + SLOT_SIZE * 3, y + SLOT_SIZE * 3, i++);
-		drawer.drawSlot(x + SLOT_SIZE * 3 + fiveOffset, y + SLOT_SIZE * 3, i++);
-		drawer.drawSlot(x, y + squareSize - SLOT_SIZE * 2, i++);
-		drawer.drawSlot(x + SLOT_SIZE, y + squareSize - SLOT_SIZE * 2, i++);
-		drawer.drawSlot(x + SLOT_SIZE * 2, y + squareSize - SLOT_SIZE * 2, i++);
+		drawer.drawSlot(x + squareSize - slotSize * 2, y + slotSize * 2, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y + slotSize * 2, i++);
+		drawer.drawSlot(x, y + squareSize - slotSize * 3, i++);
+		drawer.drawSlot(x + slotSize, y + squareSize - slotSize * 3, i++);
+		drawer.drawSlot(x + slotSize * 2, y + squareSize - slotSize * 3, i++);
+		drawer.drawSlot(x + slotSize * 3, y + slotSize * 3, i++);
+		drawer.drawSlot(x + slotSize * 3 + fiveOffset, y + slotSize * 3, i++);
+		drawer.drawSlot(x, y + squareSize - slotSize * 2, i++);
+		drawer.drawSlot(x + slotSize, y + squareSize - slotSize * 2, i++);
+		drawer.drawSlot(x + slotSize * 2, y + squareSize - slotSize * 2, i++);
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 4, y + SLOT_SIZE * 4, 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(45));
-		matrices.translate(0f, SLOT_SIZE * -0.5f, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 4, y + slotSize * 4);
+		pose.rotate(Mth.DEG_TO_RAD * 45);
+		pose.translate(0f, slotSize * -0.5f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		drawer.drawSlot(x, y + squareSize - SLOT_SIZE, i++);
-		drawer.drawSlot(x + SLOT_SIZE, y + squareSize - SLOT_SIZE, i++);
-		drawer.drawSlot(x + SLOT_SIZE * 2, y + squareSize - SLOT_SIZE, i++);
-		drawer.drawSlot(x + SLOT_SIZE * 3, y + squareSize - SLOT_SIZE, i++);
-		drawer.drawSlot(x + SLOT_SIZE * 3 + fiveOffset, y + squareSize - SLOT_SIZE, i);
+		drawer.drawSlot(x, y + squareSize - slotSize, i++);
+		drawer.drawSlot(x + slotSize, y + squareSize - slotSize, i++);
+		drawer.drawSlot(x + slotSize * 2, y + squareSize - slotSize, i++);
+		drawer.drawSlot(x + slotSize * 3, y + squareSize - slotSize, i++);
+		drawer.drawSlot(x + slotSize * 3 + fiveOffset, y + squareSize - slotSize, i);
 	}
 
-	public static void drawTwentyEight(Background bgDrawer, Slots drawer, int x, int y, MatrixStack matrices) {
+	public static void drawTwentyEight(int slotSize, Slots drawer, int x, int y, Matrix3x2fStack pose) {
 		int i = 0;
-		int squareSize = getSquareSize(28);
-		int centerOffset = (squareSize - SLOT_SIZE) / 2;
-		bgDrawer.drawBackground(squareSize + 2);
+		int squareSize = getSpecialSquareSize(slotSize, 28);
+		int centerOffset = (squareSize - slotSize) / 2;
 		x++;
 		y++;
 		
 		drawer.drawSlot(x, y, i++);
-		drawer.drawSlot(x + SLOT_SIZE, y, i++);
+		drawer.drawSlot(x + slotSize, y, i++);
 		drawer.drawSlot(x + centerOffset, y, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE * 2, y, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y, i++);
-		drawer.drawSlot(x, y + SLOT_SIZE, i++);
+		drawer.drawSlot(x + squareSize - slotSize * 2, y, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y, i++);
+		drawer.drawSlot(x, y + slotSize, i++);
 
-		Matrix4f baseTransform;
+		Matrix3x2f baseTransform;
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 1.5f, y + SLOT_SIZE * 1.5f, 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(45));
-		baseTransform = new Matrix4f(matrices.peek().getPositionMatrix());
-		matrices.translate(0f, -SLOT_SIZE, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 1.5f, y + slotSize * 1.5f);
+		pose.rotate(Mth.DEG_TO_RAD * 45);
+		baseTransform = new Matrix3x2f(pose);
+		pose.translate(0f, -slotSize);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, -SLOT_SIZE, 0f);
+		pose.translate(slotSize, -slotSize);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y + SLOT_SIZE, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y + slotSize, i++);
 
-		matrices.push();
-		matrices.multiplyPositionMatrix(baseTransform);
+		pose.pushMatrix();
+		pose.mul(baseTransform);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, -SLOT_SIZE, 0f);
+		pose.translate(slotSize, -slotSize);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, -SLOT_SIZE, 0f);
+		pose.translate(slotSize, -slotSize);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
 		drawer.drawSlot(x, y + centerOffset, i++);
 
-		matrices.push();
-		matrices.multiplyPositionMatrix(baseTransform);
-		matrices.translate(SLOT_SIZE, 0f, 0f);
+		pose.pushMatrix();
+		pose.mul(baseTransform);
+		pose.translate(slotSize, 0f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, -SLOT_SIZE, 0f);
+		pose.translate(slotSize, -slotSize);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y + centerOffset, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y + centerOffset, i++);
 
-		matrices.push();
-		matrices.multiplyPositionMatrix(baseTransform);
-		matrices.translate(SLOT_SIZE, SLOT_SIZE, 0f);
+		pose.pushMatrix();
+		pose.mul(baseTransform);
+		pose.translate(slotSize, slotSize);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, -SLOT_SIZE, 0f);
+		pose.translate(slotSize, -slotSize);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, -SLOT_SIZE, 0f);
+		pose.translate(slotSize, -slotSize);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		drawer.drawSlot(x, y + squareSize - SLOT_SIZE * 2, i++);
+		drawer.drawSlot(x, y + squareSize - slotSize * 2, i++);
 
-		matrices.push();
-		matrices.multiplyPositionMatrix(baseTransform);
-		matrices.translate(SLOT_SIZE * 2, SLOT_SIZE, 0f);
+		pose.pushMatrix();
+		pose.mul(baseTransform);
+		pose.translate(slotSize * 2, slotSize);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, -SLOT_SIZE, 0f);
+		pose.translate(slotSize, -slotSize);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y + squareSize - SLOT_SIZE * 2, i++);
-		drawer.drawSlot(x, y + squareSize - SLOT_SIZE, i++);
-		drawer.drawSlot(x + SLOT_SIZE, y + squareSize - SLOT_SIZE, i++);
-		drawer.drawSlot(x + centerOffset, y + squareSize - SLOT_SIZE, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE * 2, y + squareSize - SLOT_SIZE, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y + squareSize - SLOT_SIZE, i);
+		drawer.drawSlot(x + squareSize - slotSize, y + squareSize - slotSize * 2, i++);
+		drawer.drawSlot(x, y + squareSize - slotSize, i++);
+		drawer.drawSlot(x + slotSize, y + squareSize - slotSize, i++);
+		drawer.drawSlot(x + centerOffset, y + squareSize - slotSize, i++);
+		drawer.drawSlot(x + squareSize - slotSize * 2, y + squareSize - slotSize, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y + squareSize - slotSize, i);
 	}
 
-	public static void drawTwentyNine(Background bgDrawer, Slots drawer, int x, int y, MatrixStack matrices) {
+	public static void drawTwentyNine(int slotSize, Slots drawer, int x, int y, Matrix3x2fStack pose) {
 		int i = 0;
-		int squareSize = getSquareSize(29);
-		bgDrawer.drawBackground(squareSize + 2);
+		int squareSize = getSpecialSquareSize(slotSize, 29);
 		x++;
 		y++;
 		
 		drawer.drawSlot(x, y, i++);
-		drawer.drawSlot(x + SLOT_SIZE, y, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE * 3, y, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE * 2, y, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y, i++);
+		drawer.drawSlot(x + slotSize, y, i++);
+		drawer.drawSlot(x + squareSize - slotSize * 3, y, i++);
+		drawer.drawSlot(x + squareSize - slotSize * 2, y, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y, i++);
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 2, y + SLOT_SIZE, 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(25.99204718f));
-		matrices.translate(0f, SLOT_SIZE * -0.40947192f, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 2, y + slotSize);
+		pose.rotate(Mth.DEG_TO_RAD * 25.99204718f);
+		pose.translate(0f, slotSize * -0.40947192f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 5.58822412f, y + SLOT_SIZE * 2.93434180, 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(20.25003828f));
-		matrices.translate(SLOT_SIZE * -3, SLOT_SIZE * -0.95501732f, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 5.58822412f, y + slotSize * 2.93434180f);
+		pose.rotate(Mth.DEG_TO_RAD * 20.25003828f);
+		pose.translate(slotSize * -3, slotSize * -0.95501732f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, SLOT_SIZE * -0.04498268f, 0f);
+		pose.translate(slotSize, slotSize * -0.04498268f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, 0f, 0f);
+		pose.translate(slotSize, 0f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		drawer.drawSlot(x, y + SLOT_SIZE, i++);
+		drawer.drawSlot(x, y + slotSize, i++);
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE, y + SLOT_SIZE * 2, 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(21.62093977f));
-		matrices.translate(0f, SLOT_SIZE * -0.67231250f, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize, y + slotSize * 2);
+		pose.rotate(Mth.DEG_TO_RAD * 21.62093977f);
+		pose.translate(0f, slotSize * -0.67231250f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 4.93434180f, y + SLOT_SIZE * 2.93434180, 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(20.25540431f));
-		matrices.translate(-SLOT_SIZE * 3, SLOT_SIZE * -0.11130742f, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 4.93434180f, y + slotSize * 2.93434180f);
+		pose.rotate(Mth.DEG_TO_RAD * 20.25540431f);
+		pose.translate(-slotSize * 3, slotSize * -0.11130742f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, SLOT_SIZE * -0.05050338f, 0f);
+		pose.translate(slotSize, slotSize * -0.05050338f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, 0f, 0f);
+		pose.translate(slotSize, 0f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y + squareSize - SLOT_SIZE * 3, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y + squareSize - slotSize * 3, i++);
 
-		Matrix4f baseTransform;
+		Matrix3x2f baseTransform;
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 2.93434180f, y + SLOT_SIZE * 4.93434180, 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(18.17734536f));
-		matrices.translate(-SLOT_SIZE, SLOT_SIZE * -0.70852340f, 0f);
-		baseTransform = new Matrix4f(matrices.peek().getPositionMatrix());
-		matrices.translate(SLOT_SIZE * -2.36186381f, SLOT_SIZE * -1.12411661f, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 2.93434180f, y + slotSize * 4.93434180f);
+		pose.rotate(Mth.DEG_TO_RAD * 18.17734536f);
+		pose.translate(-slotSize, slotSize * -0.70852340f);
+		baseTransform = new Matrix3x2f(pose);
+		pose.translate(slotSize * -2.36186381f, slotSize * -1.12411661f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, SLOT_SIZE * 0.10208347f, 0f);
+		pose.translate(slotSize, slotSize * 0.10208347f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, SLOT_SIZE * 0.02203314f, 0f);
+		pose.translate(slotSize, slotSize * 0.02203314f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, 0f, 0f);
+		pose.translate(slotSize, 0f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		drawer.drawSlot(x + squareSize - SLOT_SIZE * 2, y + squareSize - SLOT_SIZE * 2, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y + squareSize - SLOT_SIZE * 2, i++);
+		drawer.drawSlot(x + squareSize - slotSize * 2, y + squareSize - slotSize * 2, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y + squareSize - slotSize * 2, i++);
 
-		matrices.push();
-		matrices.multiplyPositionMatrix(baseTransform);
-		matrices.translate(SLOT_SIZE * -2, SLOT_SIZE * -0.02203314f, 0f);
+		pose.pushMatrix();
+		pose.mul(baseTransform);
+		pose.translate(slotSize * -2, slotSize * -0.02203314f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, SLOT_SIZE * 0.02203314f, 0f);
+		pose.translate(slotSize, slotSize * 0.02203314f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, 0f, 0f);
+		pose.translate(slotSize, 0f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		drawer.drawSlot(x, y + squareSize - SLOT_SIZE, i++);
-		drawer.drawSlot(x + SLOT_SIZE, y + squareSize - SLOT_SIZE, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE * 3, y + squareSize - SLOT_SIZE, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE * 2, y + squareSize - SLOT_SIZE, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y + squareSize - SLOT_SIZE, i);
+		drawer.drawSlot(x, y + squareSize - slotSize, i++);
+		drawer.drawSlot(x + slotSize, y + squareSize - slotSize, i++);
+		drawer.drawSlot(x + squareSize - slotSize * 3, y + squareSize - slotSize, i++);
+		drawer.drawSlot(x + squareSize - slotSize * 2, y + squareSize - slotSize, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y + squareSize - slotSize, i);
 	}
 
-	public static void drawThirtySeven(Background bgDrawer, Slots drawer, int x, int y, MatrixStack matrices) {
+	public static void drawThirtySeven(int slotSize, Slots drawer, int x, int y, Matrix3x2fStack pose) {
 		int i = 0;
 		float normSize = 6.59861960f;
-		int squareSize = getSquareSize(37);
-		bgDrawer.drawBackground(squareSize + 2);
+		int squareSize = getSpecialSquareSize(slotSize, 37);
 		x++;
 		y++;
 
 		drawer.drawSlot(x, y, i++);
-		drawer.drawSlot(x + SLOT_SIZE, y, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE * 3, y, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE * 2, y, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE * 2, y + SLOT_SIZE, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y + SLOT_SIZE, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y + SLOT_SIZE * 2, i++);
+		drawer.drawSlot(x + slotSize, y, i++);
+		drawer.drawSlot(x + squareSize - slotSize * 3, y, i++);
+		drawer.drawSlot(x + squareSize - slotSize * 2, y, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y, i++);
+		drawer.drawSlot(x + squareSize - slotSize * 2, y + slotSize, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y + slotSize, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y + slotSize * 2, i++);
 
-		double offset = 0.07187936f;
+		float offset = 0.07187936f;
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 0.70223662f, y + SLOT_SIZE * 2.32969614f, 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(42.08660748f));
-		matrices.translate(SLOT_SIZE * offset, SLOT_SIZE * -3, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 0.70223662f, y + slotSize * 2.32969614f);
+		pose.rotate(Mth.DEG_TO_RAD * 42.08660748f);
+		pose.translate(slotSize * offset, slotSize * -3);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, SLOT_SIZE * offset, 0f);
+		pose.translate(slotSize, slotSize * offset);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 2, y + SLOT_SIZE * (normSize - 2.70710678f), 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(45));
-		matrices.translate(0f, SLOT_SIZE * -3f, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 2, y + slotSize * (normSize - 2.70710678f));
+		pose.rotate(Mth.DEG_TO_RAD * 45);
+		pose.translate(0f, slotSize * -3f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * (normSize - 2.32969614f), y + SLOT_SIZE * (normSize - 0.70223662f), 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(47.91339252f));
-		matrices.translate(SLOT_SIZE * -(2 + offset), SLOT_SIZE * -(3 - offset), 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * (normSize - 2.32969614f), y + slotSize * (normSize - 0.70223662f));
+		pose.rotate(Mth.DEG_TO_RAD * 47.91339252f);
+		pose.translate(slotSize * -(2 + offset), slotSize * -(3 - offset));
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, SLOT_SIZE * -offset, 0f);
+		pose.translate(slotSize, slotSize * -offset);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		drawer.drawSlot(x, y + SLOT_SIZE, i++);
+		drawer.drawSlot(x, y + slotSize, i++);
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 0.70223662f, y + SLOT_SIZE * 2.32969614f, 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(42.08660748f));
-		matrices.translate(SLOT_SIZE * offset, SLOT_SIZE * -2, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 0.70223662f, y + slotSize * 2.32969614f);
+		pose.rotate(Mth.DEG_TO_RAD * 42.08660748f);
+		pose.translate(slotSize * offset, slotSize * -2);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, SLOT_SIZE * -offset, 0f);
+		pose.translate(slotSize, slotSize * -offset);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 2, y + SLOT_SIZE * (normSize - 2.70710678f), 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(45));
-		matrices.translate(0f, SLOT_SIZE * -2, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 2, y + slotSize * (normSize - 2.70710678f));
+		pose.rotate(Mth.DEG_TO_RAD * 45);
+		pose.translate(0f, slotSize * -2);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * (normSize - 2.32969614f), y + SLOT_SIZE * (normSize - 0.70223662f), 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(47.91339252f));
-		matrices.translate(SLOT_SIZE * -(2 + offset), SLOT_SIZE * -(2 - offset), 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * (normSize - 2.32969614f), y + slotSize * (normSize - 0.70223662f));
+		pose.rotate(Mth.DEG_TO_RAD * 47.91339252f);
+		pose.translate(slotSize * -(2 + offset), slotSize * -(2 - offset));
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, SLOT_SIZE * -offset, 0f);
+		pose.translate(slotSize, slotSize * -offset);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y + squareSize - SLOT_SIZE * 2, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y + squareSize - slotSize * 2, i++);
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 0.70223662f, y + SLOT_SIZE * 2.32969614f, 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(42.08660748f));
-		matrices.translate(0f, -SLOT_SIZE, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 0.70223662f, y + slotSize * 2.32969614f);
+		pose.rotate(Mth.DEG_TO_RAD * 42.08660748f);
+		pose.translate(0f, -slotSize);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, SLOT_SIZE * offset, 0f);
+		pose.translate(slotSize, slotSize * offset);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 2, y + SLOT_SIZE * (normSize - 2.70710678f), 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(45));
-		matrices.translate(0f, -SLOT_SIZE, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 2, y + slotSize * (normSize - 2.70710678f));
+		pose.rotate(Mth.DEG_TO_RAD * 45);
+		pose.translate(0f, -slotSize);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * (normSize - 2.32969614f), y + SLOT_SIZE * (normSize - 0.70223662f), 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(47.91339252f));
-		matrices.translate(SLOT_SIZE * -2, SLOT_SIZE * -(1 - offset), 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * (normSize - 2.32969614f), y + slotSize * (normSize - 0.70223662f));
+		pose.rotate(Mth.DEG_TO_RAD * 47.91339252f);
+		pose.translate(slotSize * -2, slotSize * -(1 - offset));
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, SLOT_SIZE * -offset, 0f);
+		pose.translate(slotSize, slotSize * -offset);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		drawer.drawSlot(x, y + squareSize - SLOT_SIZE * 4, i++);
-		drawer.drawSlot(x, y + squareSize - SLOT_SIZE * 3, i++);
-		drawer.drawSlot(x + SLOT_SIZE, y + squareSize - SLOT_SIZE * 3, i++);
-		drawer.drawSlot(x, y + squareSize - SLOT_SIZE * 2, i++);
-		drawer.drawSlot(x + SLOT_SIZE, y + squareSize - SLOT_SIZE * 2, i++);
-		drawer.drawSlot(x + SLOT_SIZE * 2, y + squareSize - SLOT_SIZE * 2, i++);
-		drawer.drawSlot(x, y + squareSize - SLOT_SIZE, i++);
-		drawer.drawSlot(x + SLOT_SIZE, y + squareSize - SLOT_SIZE, i++);
-		drawer.drawSlot(x + SLOT_SIZE * 2, y + squareSize - SLOT_SIZE, i++);
-		drawer.drawSlot(x + SLOT_SIZE * 3, y + squareSize - SLOT_SIZE, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE * 2, y + squareSize - SLOT_SIZE, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y + squareSize - SLOT_SIZE, i);
+		drawer.drawSlot(x, y + squareSize - slotSize * 4, i++);
+		drawer.drawSlot(x, y + squareSize - slotSize * 3, i++);
+		drawer.drawSlot(x + slotSize, y + squareSize - slotSize * 3, i++);
+		drawer.drawSlot(x, y + squareSize - slotSize * 2, i++);
+		drawer.drawSlot(x + slotSize, y + squareSize - slotSize * 2, i++);
+		drawer.drawSlot(x + slotSize * 2, y + squareSize - slotSize * 2, i++);
+		drawer.drawSlot(x, y + squareSize - slotSize, i++);
+		drawer.drawSlot(x + slotSize, y + squareSize - slotSize, i++);
+		drawer.drawSlot(x + slotSize * 2, y + squareSize - slotSize, i++);
+		drawer.drawSlot(x + slotSize * 3, y + squareSize - slotSize, i++);
+		drawer.drawSlot(x + squareSize - slotSize * 2, y + squareSize - slotSize, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y + squareSize - slotSize, i);
 	}
 
-	public static void drawThirtyEight(Background bgDrawer, Slots drawer, int x, int y, MatrixStack matrices) {
+	public static void drawThirtyEight(int slotSize, Slots drawer, int x, int y, Matrix3x2fStack pose) {
 		int i = 0;
-		var fiveOffset = (int) Math.floor(SLOT_SIZE * 1.70710678f);
-		int squareSize = getSquareSize(38);
-		bgDrawer.drawBackground(squareSize + 2);
+		var fiveOffset = (int) Math.floor(slotSize * 1.70710678f);
+		int squareSize = getSpecialSquareSize(slotSize, 38);
 		x++;
 		y++;
 		
 		drawer.drawSlot(x, y, i++);
 		for (int j = 5; j >= 1; j--) {
-			drawer.drawSlot(x + squareSize - SLOT_SIZE * j, y, i++);
+			drawer.drawSlot(x + squareSize - slotSize * j, y, i++);
 		}
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE, y + SLOT_SIZE, 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(45));
-		matrices.translate(0f, SLOT_SIZE * -0.5f, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize, y + slotSize);
+		pose.rotate(Mth.DEG_TO_RAD * 45);
+		pose.translate(0f, slotSize * -0.5f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		drawer.drawSlot(x, y + squareSize - SLOT_SIZE * 5, i++);
-		drawer.drawSlot(x + fiveOffset, y + squareSize - SLOT_SIZE * 5, i++);
+		drawer.drawSlot(x, y + squareSize - slotSize * 5, i++);
+		drawer.drawSlot(x + fiveOffset, y + squareSize - slotSize * 5, i++);
 
 		for (int j = 4; j >= 1; j--) {
-			drawer.drawSlot(x + squareSize - SLOT_SIZE * j, y + SLOT_SIZE, i++);
+			drawer.drawSlot(x + squareSize - slotSize * j, y + slotSize, i++);
 		}
 
-		drawer.drawSlot(x + squareSize - SLOT_SIZE * 2, y + SLOT_SIZE * 2, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y + SLOT_SIZE * 2, i++);
+		drawer.drawSlot(x + squareSize - slotSize * 2, y + slotSize * 2, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y + slotSize * 2, i++);
 
-		drawer.drawSlot(x, y + squareSize - SLOT_SIZE * 4, i++);
-		drawer.drawSlot(x + SLOT_SIZE, y + squareSize - SLOT_SIZE * 4, i++);
-		drawer.drawSlot(x + SLOT_SIZE * 2, y + squareSize - SLOT_SIZE * 4, i++);
-		drawer.drawSlot(x + SLOT_SIZE * 3, y + squareSize - SLOT_SIZE * 4, i++);
+		drawer.drawSlot(x, y + squareSize - slotSize * 4, i++);
+		drawer.drawSlot(x + slotSize, y + squareSize - slotSize * 4, i++);
+		drawer.drawSlot(x + slotSize * 2, y + squareSize - slotSize * 4, i++);
+		drawer.drawSlot(x + slotSize * 3, y + squareSize - slotSize * 4, i++);
 
-		drawer.drawSlot(x + squareSize - SLOT_SIZE * 2, y + SLOT_SIZE * 3, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y + SLOT_SIZE * 3, i++);
+		drawer.drawSlot(x + squareSize - slotSize * 2, y + slotSize * 3, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y + slotSize * 3, i++);
 
-		drawer.drawSlot(x, y + squareSize - SLOT_SIZE * 3, i++);
-		drawer.drawSlot(x + SLOT_SIZE, y + squareSize - SLOT_SIZE * 3, i++);
-		drawer.drawSlot(x + SLOT_SIZE * 2, y + squareSize - SLOT_SIZE * 3, i++);
-		drawer.drawSlot(x + SLOT_SIZE * 3, y + squareSize - SLOT_SIZE * 3, i++);
+		drawer.drawSlot(x, y + squareSize - slotSize * 3, i++);
+		drawer.drawSlot(x + slotSize, y + squareSize - slotSize * 3, i++);
+		drawer.drawSlot(x + slotSize * 2, y + squareSize - slotSize * 3, i++);
+		drawer.drawSlot(x + slotSize * 3, y + squareSize - slotSize * 3, i++);
 
-		drawer.drawSlot(x + SLOT_SIZE * 4, y + SLOT_SIZE * 4, i++);
-		drawer.drawSlot(x + SLOT_SIZE * 4 + fiveOffset, y + SLOT_SIZE * 4, i++);
+		drawer.drawSlot(x + slotSize * 4, y + slotSize * 4, i++);
+		drawer.drawSlot(x + slotSize * 4 + fiveOffset, y + slotSize * 4, i++);
 
-		drawer.drawSlot(x, y + squareSize - SLOT_SIZE * 2, i++);
-		drawer.drawSlot(x + SLOT_SIZE, y + squareSize - SLOT_SIZE * 2, i++);
-		drawer.drawSlot(x + SLOT_SIZE * 2, y + squareSize - SLOT_SIZE * 2, i++);
-		drawer.drawSlot(x + SLOT_SIZE * 3, y + squareSize - SLOT_SIZE * 2, i++);
+		drawer.drawSlot(x, y + squareSize - slotSize * 2, i++);
+		drawer.drawSlot(x + slotSize, y + squareSize - slotSize * 2, i++);
+		drawer.drawSlot(x + slotSize * 2, y + squareSize - slotSize * 2, i++);
+		drawer.drawSlot(x + slotSize * 3, y + squareSize - slotSize * 2, i++);
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 5, y + SLOT_SIZE * 5, 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(45));
-		matrices.translate(0f, SLOT_SIZE * -0.5f, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 5, y + slotSize * 5);
+		pose.rotate(Mth.DEG_TO_RAD * 45);
+		pose.translate(0f, slotSize * -0.5f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		drawer.drawSlot(x, y + squareSize - SLOT_SIZE, i++);
-		drawer.drawSlot(x + SLOT_SIZE, y + squareSize - SLOT_SIZE, i++);
-		drawer.drawSlot(x + SLOT_SIZE * 2, y + squareSize - SLOT_SIZE, i++);
-		drawer.drawSlot(x + SLOT_SIZE * 3, y + squareSize - SLOT_SIZE, i++);
-		drawer.drawSlot(x + SLOT_SIZE * 4, y + squareSize - SLOT_SIZE, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y + squareSize - SLOT_SIZE, i);
+		drawer.drawSlot(x, y + squareSize - slotSize, i++);
+		drawer.drawSlot(x + slotSize, y + squareSize - slotSize, i++);
+		drawer.drawSlot(x + slotSize * 2, y + squareSize - slotSize, i++);
+		drawer.drawSlot(x + slotSize * 3, y + squareSize - slotSize, i++);
+		drawer.drawSlot(x + slotSize * 4, y + squareSize - slotSize, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y + squareSize - slotSize, i);
 	}
 
-	public static void drawThirtyNine(Background bgDrawer, Slots drawer, int x, int y, MatrixStack matrices) {
+	public static void drawThirtyNine(int slotSize, Slots drawer, int x, int y, Matrix3x2fStack pose) {
 		int i = 0;
 		float normSize = 6.81880916f;
-		int squareSize = getSquareSize(39);
-		bgDrawer.drawBackground(squareSize + 2);
+		int squareSize = getSpecialSquareSize(slotSize, 39);
 		x++;
 		y++;
 
 		drawer.drawSlot(x, y, i++);
 		for (int k = 5; k >= 1; k--) {
-			drawer.drawSlot(x + squareSize - SLOT_SIZE * k, y, i++);
+			drawer.drawSlot(x + squareSize - slotSize * k, y, i++);
 		}
 		for (int k = 3; k >= 1; k--) {
-			drawer.drawSlot(x + squareSize - SLOT_SIZE * k, y + SLOT_SIZE, i++);
+			drawer.drawSlot(x + squareSize - slotSize * k, y + slotSize, i++);
 		}
-		drawer.drawSlot(x, y + squareSize - SLOT_SIZE * 5, i++);
+		drawer.drawSlot(x, y + squareSize - slotSize * 5, i++);
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 0.60617891f, y + SLOT_SIZE * 1.29752487f, 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(-37.07040322f));
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 0.60617891f, y + slotSize * 1.29752487f);
+		pose.rotate(Mth.DEG_TO_RAD * -37.07040322f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE * 0.12360160f, SLOT_SIZE, 0f);
+		pose.translate(slotSize * 0.12360160f, slotSize);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, SLOT_SIZE * 0.23145647f, 0f);
+		pose.translate(slotSize, slotSize * 0.23145647f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE * -0.13060668f, SLOT_SIZE, 0f);
+		pose.translate(slotSize * -0.13060668f, slotSize);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		drawer.drawSlot(x + squareSize - SLOT_SIZE * 2, y + SLOT_SIZE * 2, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y + SLOT_SIZE * 2, i++);
+		drawer.drawSlot(x + squareSize - slotSize * 2, y + slotSize * 2, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y + slotSize * 2, i++);
 		for (int k = 0; k <= 2; k++) {
-			drawer.drawSlot(x + SLOT_SIZE * k, y + squareSize - SLOT_SIZE * 4, i++);
+			drawer.drawSlot(x + slotSize * k, y + squareSize - slotSize * 4, i++);
 		}
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y + SLOT_SIZE * 3, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y + slotSize * 3, i++);
 		for (int k = 0; k <= 3; k++) {
-			drawer.drawSlot(x + SLOT_SIZE * k, y + squareSize - SLOT_SIZE * 3, i++);
+			drawer.drawSlot(x + slotSize * k, y + squareSize - slotSize * 3, i++);
 		}
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y + SLOT_SIZE * 4, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y + slotSize * 4, i++);
 		for (int k = 0; k <= 3; k++) {
-			drawer.drawSlot(x + SLOT_SIZE * k, y + squareSize - SLOT_SIZE * 2, i++);
+			drawer.drawSlot(x + slotSize * k, y + squareSize - slotSize * 2, i++);
 		}
 		for (int k = 0; k <= 4; k++) {
-			drawer.drawSlot(x + SLOT_SIZE * k, y + squareSize - SLOT_SIZE, i++);
+			drawer.drawSlot(x + slotSize * k, y + squareSize - slotSize, i++);
 		}
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * (normSize - 1.29752487f), y + SLOT_SIZE * (normSize - 0.60617891f), 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(37.07040322f));
-		matrices.translate(SLOT_SIZE * -3.12360160f, SLOT_SIZE * -1.99299492f, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * (normSize - 1.29752487f), y + slotSize * (normSize - 0.60617891f));
+		pose.rotate(Mth.DEG_TO_RAD * 37.07040322f);
+		pose.translate(slotSize * -3.12360160f, slotSize * -1.99299492f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, SLOT_SIZE * -0.12360160f, 0f);
+		pose.translate(slotSize, slotSize * -0.12360160f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE * 0.23145647f, SLOT_SIZE, 0f);
+		pose.translate(slotSize * 0.23145647f, slotSize);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, SLOT_SIZE * 0.13060668f, 0f);
+		pose.translate(slotSize, slotSize * 0.13060668f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y + squareSize - SLOT_SIZE, i);
+		drawer.drawSlot(x + squareSize - slotSize, y + squareSize - slotSize, i);
 	}
 
-	public static void drawForty(Background bgDrawer, Slots drawer, int x, int y, MatrixStack matrices) {
+	public static void drawForty(int slotSize, Slots drawer, int x, int y, Matrix3x2fStack pose) {
 		int i = 0;
-		int squareSize = getSquareSize(40);
-		bgDrawer.drawBackground(squareSize + 2);
+		int squareSize = getSpecialSquareSize(slotSize, 40);
 		x++;
 		y++;
 
 		for (int j = 0; j < 3; j++) {
 			for (int k = 0; k < 3 - j; k++) {
-				drawer.drawSlot(x + SLOT_SIZE * k, y + SLOT_SIZE * j, i++);
+				drawer.drawSlot(x + slotSize * k, y + slotSize * j, i++);
 			}
 		}
 		for (int j = 0; j < 3; j++) {
 			for (int k = 3 - j; k >= 1; k--) {
-				drawer.drawSlot(x + squareSize - SLOT_SIZE * k, y + SLOT_SIZE * j, i++);
+				drawer.drawSlot(x + squareSize - slotSize * k, y + slotSize * j, i++);
 			}
 		}
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 2, y + SLOT_SIZE * 2, 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(45));
-		matrices.translate(0f, SLOT_SIZE * -2, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 2, y + slotSize * 2);
+		pose.rotate(Mth.DEG_TO_RAD * 45);
+		pose.translate(0f, slotSize * -2);
 
 		for (int j = 0; j < 4; j++) {
 			for (int k = 0; k < 4; k++) {
-				drawer.drawSlot(SLOT_SIZE * k, SLOT_SIZE * j, i++);
+				drawer.drawSlot(slotSize * k, slotSize * j, i++);
 			}
 		}
 
-		matrices.pop();
+		pose.popMatrix();
 
 		for (int j = 3; j >= 1; j--) {
 			for (int k = 0; k < 4 - j; k++) {
-				drawer.drawSlot(x + SLOT_SIZE * k, y + squareSize - SLOT_SIZE * j, i++);
+				drawer.drawSlot(x + slotSize * k, y + squareSize - slotSize * j, i++);
 			}
 		}
 		for (int j = 3; j >= 1; j--) {
 			for (int k = 4 - j; k >= 1; k--) {
-				drawer.drawSlot(x + squareSize - SLOT_SIZE * k, y + squareSize - SLOT_SIZE * j, i++);
+				drawer.drawSlot(x + squareSize - slotSize * k, y + squareSize - slotSize * j, i++);
 			}
 		}
 	}
 
-	public static void drawFortyOne(Background bgDrawer, Slots drawer, int x, int y, MatrixStack matrices) {
+	public static void drawFortyOne(int slotSize, Slots drawer, int x, int y, Matrix3x2fStack pose) {
 		int i = 0;
-		int squareSize = getSquareSize(41);
-		bgDrawer.drawBackground(squareSize + 2);
+		int squareSize = getSpecialSquareSize(slotSize, 41);
 		x++;
 		y++;
 
 		for (int j = 0; j < 3; j++) {
 			for (int k = 0; k < 3 - j; k++) {
-				drawer.drawSlot(x + SLOT_SIZE * k, y + SLOT_SIZE * j, i++);
+				drawer.drawSlot(x + slotSize * k, y + slotSize * j, i++);
 			}
 		}
 
 		for (int j = 3; j >= 1; j--) {
-			drawer.drawSlot(x + squareSize - SLOT_SIZE * j, y, i++);
+			drawer.drawSlot(x + squareSize - slotSize * j, y, i++);
 		}
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 3.07655182f, y + SLOT_SIZE * 0.74322162f, 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(16.60058754f));
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 3.07655182f, y + slotSize * 0.74322162f);
+		pose.rotate(Mth.DEG_TO_RAD * 16.60058754f);
 
 		for (int j = 0; j < 4; j++) {
-			drawer.drawSlot(SLOT_SIZE * j, 0, i++);
+			drawer.drawSlot(slotSize * j, 0, i++);
 		}
 
 		for (int k = 0; k < 3; k++) {
-			matrices.translate(SLOT_SIZE * -0.67262145f, SLOT_SIZE, 0f);
+			pose.translate(slotSize * -0.67262145f, slotSize);
 			for (int j = 0; j < 5; j++) {
-				drawer.drawSlot(SLOT_SIZE * j, 0, i++);
+				drawer.drawSlot(slotSize * j, 0, i++);
 			}
 		}
 
-		matrices.translate(SLOT_SIZE * 0.32737854f, SLOT_SIZE, 0f);
+		pose.translate(slotSize * 0.32737854f, slotSize);
 
 		for (int j = 0; j < 4; j++) {
-			drawer.drawSlot(SLOT_SIZE * j, 0, i++);
+			drawer.drawSlot(slotSize * j, 0, i++);
 		}
 
-		matrices.pop();
+		pose.popMatrix();
 
 		for (int j = 0; j < 3; j++) {
-			drawer.drawSlot(x + SLOT_SIZE * j, y + squareSize - SLOT_SIZE, i++);
+			drawer.drawSlot(x + slotSize * j, y + squareSize - slotSize, i++);
 		}
 
 		for (int j = 3; j >= 1; j--) {
 			for (int k = 4 - j; k >= 1; k--) {
-				drawer.drawSlot(x + squareSize - SLOT_SIZE * k, y + squareSize - SLOT_SIZE * j, i++);
+				drawer.drawSlot(x + squareSize - slotSize * k, y + squareSize - slotSize * j, i++);
 			}
 		}
 	}
 
-	public static void drawFifty(Background bgDrawer, Slots drawer, int x, int y, MatrixStack matrices) {
+	public static void drawFifty(int slotSize, Slots drawer, int x, int y, Matrix3x2fStack pose) {
 		int i = 0;
 		float normSize = 7.59861960f;
-		int squareSize = getSquareSize(50);
-		bgDrawer.drawBackground(squareSize + 2);
+		int squareSize = getSpecialSquareSize(slotSize, 50);
 		x++;
 		y++;
 
 		drawer.drawSlot(x, y, i++);
-		drawer.drawSlot(x + SLOT_SIZE, y, i++);
-		drawer.drawSlot(x, y + SLOT_SIZE, i++);
-		drawer.drawSlot(x + SLOT_SIZE, y + SLOT_SIZE, i++);
-		drawer.drawSlot(x, y + SLOT_SIZE * 2, i++);
+		drawer.drawSlot(x + slotSize, y, i++);
+		drawer.drawSlot(x, y + slotSize, i++);
+		drawer.drawSlot(x + slotSize, y + slotSize, i++);
+		drawer.drawSlot(x, y + slotSize * 2, i++);
 
 
 		for (int j = 0; j < 5; j++) {
 			for (int k = 5 - j; k >= 1; k--) {
-				drawer.drawSlot(x + squareSize - SLOT_SIZE * k, y + SLOT_SIZE * j, i++);
+				drawer.drawSlot(x + squareSize - slotSize * k, y + slotSize * j, i++);
 			}
 		}
 
-		double offset = 0.07187936f;
+		float offset = 0.07187936f;
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 0.70223662f, y + SLOT_SIZE * 3.32969614f, 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(42.08660748f));
-		matrices.translate(SLOT_SIZE * offset, SLOT_SIZE * -3, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 0.70223662f, y + slotSize * 3.32969614f);
+		pose.rotate(Mth.DEG_TO_RAD * 42.08660748f);
+		pose.translate(slotSize * offset, slotSize * -3);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, SLOT_SIZE * offset, 0f);
+		pose.translate(slotSize, slotSize * offset);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 2, y + SLOT_SIZE * (normSize - 2.70710678f), 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(45));
-		matrices.translate(0f, SLOT_SIZE * -3f, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 2, y + slotSize * (normSize - 2.70710678f));
+		pose.rotate(Mth.DEG_TO_RAD * 45);
+		pose.translate(0f, slotSize * -3f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * (normSize - 3.32969614f), y + SLOT_SIZE * (normSize - 0.70223662f), 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(47.91339252f));
-		matrices.translate(SLOT_SIZE * -(2 + offset), SLOT_SIZE * -(3 - offset), 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * (normSize - 3.32969614f), y + slotSize * (normSize - 0.70223662f));
+		pose.rotate(Mth.DEG_TO_RAD * 47.91339252f);
+		pose.translate(slotSize * -(2 + offset), slotSize * -(3 - offset));
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, SLOT_SIZE * -offset, 0f);
+		pose.translate(slotSize, slotSize * -offset);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 0.70223662f, y + SLOT_SIZE * 3.32969614f, 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(42.08660748f));
-		matrices.translate(SLOT_SIZE * offset, SLOT_SIZE * -2, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 0.70223662f, y + slotSize * 3.32969614f);
+		pose.rotate(Mth.DEG_TO_RAD * 42.08660748f);
+		pose.translate(slotSize * offset, slotSize * -2);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, SLOT_SIZE * -offset, 0f);
+		pose.translate(slotSize, slotSize * -offset);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 2, y + SLOT_SIZE * (normSize - 2.70710678f), 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(45));
-		matrices.translate(0f, SLOT_SIZE * -2, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 2, y + slotSize * (normSize - 2.70710678f));
+		pose.rotate(Mth.DEG_TO_RAD * 45);
+		pose.translate(0f, slotSize * -2);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * (normSize - 3.32969614f), y + SLOT_SIZE * (normSize - 0.70223662f), 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(47.91339252f));
-		matrices.translate(SLOT_SIZE * -(2 + offset), SLOT_SIZE * -(2 - offset), 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * (normSize - 3.32969614f), y + slotSize * (normSize - 0.70223662f));
+		pose.rotate(Mth.DEG_TO_RAD * 47.91339252f);
+		pose.translate(slotSize * -(2 + offset), slotSize * -(2 - offset));
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, SLOT_SIZE * -offset, 0f);
+		pose.translate(slotSize, slotSize * -offset);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 0.70223662f, y + SLOT_SIZE * 3.32969614f, 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(42.08660748f));
-		matrices.translate(0f, -SLOT_SIZE, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 0.70223662f, y + slotSize * 3.32969614f);
+		pose.rotate(Mth.DEG_TO_RAD * 42.08660748f);
+		pose.translate(0f, -slotSize);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, SLOT_SIZE * offset, 0f);
+		pose.translate(slotSize, slotSize * offset);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 2, y + SLOT_SIZE * (normSize - 2.70710678f), 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(45));
-		matrices.translate(0f, -SLOT_SIZE, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 2, y + slotSize * (normSize - 2.70710678f));
+		pose.rotate(Mth.DEG_TO_RAD * 45);
+		pose.translate(0f, -slotSize);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * (normSize - 3.32969614f), y + SLOT_SIZE * (normSize - 0.70223662f), 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(47.91339252f));
-		matrices.translate(SLOT_SIZE * -2, SLOT_SIZE * -(1 - offset), 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * (normSize - 3.32969614f), y + slotSize * (normSize - 0.70223662f));
+		pose.rotate(Mth.DEG_TO_RAD * 47.91339252f);
+		pose.translate(slotSize * -2, slotSize * -(1 - offset));
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, SLOT_SIZE * -offset, 0f);
+		pose.translate(slotSize, slotSize * -offset);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
 		for (int j = 4; j >= 1; j--) {
 			for (int k = 0; k <= 4 - j; k++) {
-				drawer.drawSlot(x + SLOT_SIZE * k, y + squareSize - SLOT_SIZE * j, i++);
+				drawer.drawSlot(x + slotSize * k, y + squareSize - slotSize * j, i++);
 			}
 		}
 
-		drawer.drawSlot(x + squareSize - SLOT_SIZE * 2, y + squareSize - SLOT_SIZE * 2, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y + squareSize - SLOT_SIZE * 2, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE * 3, y + squareSize - SLOT_SIZE, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE * 2, y + squareSize - SLOT_SIZE, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y + squareSize - SLOT_SIZE, i);
+		drawer.drawSlot(x + squareSize - slotSize * 2, y + squareSize - slotSize * 2, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y + squareSize - slotSize * 2, i++);
+		drawer.drawSlot(x + squareSize - slotSize * 3, y + squareSize - slotSize, i++);
+		drawer.drawSlot(x + squareSize - slotSize * 2, y + squareSize - slotSize, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y + squareSize - slotSize, i);
 	}
 
-	public static void drawFiftyOne(Background bgDrawer, Slots drawer, int x, int y, MatrixStack matrices) {
+	public static void drawFiftyOne(int slotSize, Slots drawer, int x, int y, Matrix3x2fStack pose) {
 		int i = 0;
 		float normSize = 7.70435372f;
-		int squareSize = getSquareSize(51);
-		bgDrawer.drawBackground(squareSize + 2);
+		int squareSize = getSpecialSquareSize(slotSize, 51);
 		x++;
 		y++;
 		
 		drawer.drawSlot(x, y, i++);
-		drawer.drawSlot(x + SLOT_SIZE, y, i++);
-		drawer.drawSlot(x + SLOT_SIZE * 2, y, i++);
+		drawer.drawSlot(x + slotSize, y, i++);
+		drawer.drawSlot(x + slotSize * 2, y, i++);
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * (normSize - 4.58444800f), y, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * (normSize - 4.58444800f), y);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		drawer.drawSlot(x, y + SLOT_SIZE, i++);
-		drawer.drawSlot(x + SLOT_SIZE, y + SLOT_SIZE, i++);
-		drawer.drawSlot(x, y + SLOT_SIZE * 2, i++);
+		drawer.drawSlot(x, y + slotSize, i++);
+		drawer.drawSlot(x + slotSize, y + slotSize, i++);
+		drawer.drawSlot(x, y + slotSize * 2, i++);
 
 		for (int j = 0; j < 4; j++) {
 			for (int k = 3 - j/2; k >= 1; k--) {
-				drawer.drawSlot(x + squareSize - SLOT_SIZE * k, y + SLOT_SIZE * j, i++);
+				drawer.drawSlot(x + squareSize - slotSize * k, y + slotSize * j, i++);
 			}
 		}
 
-		double offset = 0.08471829f;
-		Matrix4f transform1, transform2, transform3, transform4;
+		float offset = 0.08471829f;
+		Matrix3x2f transform1, transform2, transform3, transform4;
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 0.69479500f, y + SLOT_SIZE * 3.17645419f, 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(-30.03434357f));
-		transform1 = new Matrix4f(matrices.peek().getPositionMatrix());
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 0.69479500f, y + slotSize * 3.17645419f);
+		pose.rotate(Mth.DEG_TO_RAD * -30.03434357f);
+		transform1 = new Matrix3x2f(pose);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * (normSize - 4), y + SLOT_SIZE * (normSize - 1), 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(-22.08119070f));
-		matrices.translate(SLOT_SIZE * offset * -5, SLOT_SIZE * -5, 0f);
-		transform2 = new Matrix4f(matrices.peek().getPositionMatrix());
-		matrices.translate(SLOT_SIZE * 0.02639259f, 0f, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * (normSize - 4), y + slotSize * (normSize - 1));
+		pose.rotate(Mth.DEG_TO_RAD * -22.08119070f);
+		pose.translate(slotSize * offset * -5, slotSize * -5);
+		transform2 = new Matrix3x2f(pose);
+		pose.translate(slotSize * 0.02639259f, 0f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 3, y + SLOT_SIZE, 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(-22.08119070f));
-		matrices.translate(SLOT_SIZE * (offset - 1), 0f, 0f);
-		transform3 = new Matrix4f(matrices.peek().getPositionMatrix());
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 3, y + slotSize);
+		pose.rotate(Mth.DEG_TO_RAD * -22.08119070f);
+		pose.translate(slotSize * (offset - 1), 0f);
+		transform3 = new Matrix3x2f(pose);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.multiplyPositionMatrix(transform1);
-		matrices.translate(SLOT_SIZE * -0.077f, SLOT_SIZE, 0f);
+		pose.pushMatrix();
+		pose.mul(transform1);
+		pose.translate(slotSize * -0.077f, slotSize);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.multiplyPositionMatrix(transform2);
-		matrices.translate(SLOT_SIZE * (offset + 0.00501247f), SLOT_SIZE, 0f);
+		pose.pushMatrix();
+		pose.mul(transform2);
+		pose.translate(slotSize * (offset + 0.00501247f), slotSize);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.multiplyPositionMatrix(transform3);
-		matrices.translate(SLOT_SIZE * (offset - 0.00501247f), SLOT_SIZE, 0f);
+		pose.pushMatrix();
+		pose.mul(transform3);
+		pose.translate(slotSize * (offset - 0.00501247f), slotSize);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * (normSize - 1.69479500f), y + SLOT_SIZE * (normSize - 3.17645419f), 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(-30.03434357f));
-		matrices.translate(SLOT_SIZE * -0.804f, SLOT_SIZE * -4, 0f);
-		transform4 = new Matrix4f(matrices.peek().getPositionMatrix());
+		pose.pushMatrix();
+		pose.translate(x + slotSize * (normSize - 1.69479500f), y + slotSize * (normSize - 3.17645419f));
+		pose.rotate(Mth.DEG_TO_RAD * -30.03434357f);
+		pose.translate(slotSize * -0.804f, slotSize * -4);
+		transform4 = new Matrix3x2f(pose);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.multiplyPositionMatrix(transform1);
-		matrices.translate(SLOT_SIZE * -0.13531248f, SLOT_SIZE * 2, 0f);
+		pose.pushMatrix();
+		pose.mul(transform1);
+		pose.translate(slotSize * -0.13531248f, slotSize * 2);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.multiplyPositionMatrix(transform2);
-		matrices.translate(SLOT_SIZE * offset * 2, SLOT_SIZE * 2, 0f);
+		pose.pushMatrix();
+		pose.mul(transform2);
+		pose.translate(slotSize * offset * 2, slotSize * 2);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.multiplyPositionMatrix(transform3);
-		matrices.translate(SLOT_SIZE * offset * 2, SLOT_SIZE * 2, 0f);
+		pose.pushMatrix();
+		pose.mul(transform3);
+		pose.translate(slotSize * offset * 2, slotSize * 2);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.multiplyPositionMatrix(transform4);
-		matrices.translate(SLOT_SIZE * -0.06068752f, SLOT_SIZE, 0f);
+		pose.pushMatrix();
+		pose.mul(transform4);
+		pose.translate(slotSize * -0.06068752f, slotSize);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.multiplyPositionMatrix(transform1);
-		matrices.translate(SLOT_SIZE * -0.196f, SLOT_SIZE * 3, 0f);
+		pose.pushMatrix();
+		pose.mul(transform1);
+		pose.translate(slotSize * -0.196f, slotSize * 3);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.multiplyPositionMatrix(transform2);
-		matrices.translate(SLOT_SIZE * (offset * 3 - 0.00501247f), SLOT_SIZE * 3, 0f);
+		pose.pushMatrix();
+		pose.mul(transform2);
+		pose.translate(slotSize * (offset * 3 - 0.00501247f), slotSize * 3);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.multiplyPositionMatrix(transform3);
-		matrices.translate(SLOT_SIZE * (offset * 3 + 0.00501247f), SLOT_SIZE * 3, 0f);
+		pose.pushMatrix();
+		pose.mul(transform3);
+		pose.translate(slotSize * (offset * 3 + 0.00501247f), slotSize * 3);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.multiplyPositionMatrix(transform4);
-		matrices.translate(SLOT_SIZE * -0.119f, SLOT_SIZE * 2, 0f);
+		pose.pushMatrix();
+		pose.mul(transform4);
+		pose.translate(slotSize * -0.119f, slotSize * 2);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.multiplyPositionMatrix(transform2);
-		matrices.translate(SLOT_SIZE * (offset * 4 - 0.02639259f), SLOT_SIZE * 4, 0f);
+		pose.pushMatrix();
+		pose.mul(transform2);
+		pose.translate(slotSize * (offset * 4 - 0.02639259f), slotSize * 4);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.multiplyPositionMatrix(transform3);
-		matrices.translate(SLOT_SIZE * (offset * 4 + 0.02639259f), SLOT_SIZE * 4, 0f);
+		pose.pushMatrix();
+		pose.mul(transform3);
+		pose.translate(slotSize * (offset * 4 + 0.02639259f), slotSize * 4);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.multiplyPositionMatrix(transform4);
-		matrices.translate(SLOT_SIZE * -0.196f, SLOT_SIZE * 3, 0f);
+		pose.pushMatrix();
+		pose.mul(transform4);
+		pose.translate(slotSize * -0.196f, slotSize * 3);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
 		for (int j = 0; j < 4; j++) {
 			for (int k = 0; k <= j/2; k++) {
-				drawer.drawSlot(x + SLOT_SIZE * k, y + squareSize - SLOT_SIZE * (4 - j), i++);
+				drawer.drawSlot(x + slotSize * k, y + squareSize - slotSize * (4 - j), i++);
 			}
 		}
 
-		drawer.drawSlot(x + squareSize - SLOT_SIZE * 2, y + squareSize - SLOT_SIZE * 3, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y + squareSize - SLOT_SIZE * 3, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE * 3, y + squareSize - SLOT_SIZE * 2, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE * 2, y + squareSize - SLOT_SIZE * 2, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y + squareSize - SLOT_SIZE * 2, i++);
+		drawer.drawSlot(x + squareSize - slotSize * 2, y + squareSize - slotSize * 3, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y + squareSize - slotSize * 3, i++);
+		drawer.drawSlot(x + squareSize - slotSize * 3, y + squareSize - slotSize * 2, i++);
+		drawer.drawSlot(x + squareSize - slotSize * 2, y + squareSize - slotSize * 2, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y + squareSize - slotSize * 2, i++);
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 2.58444800f, y + SLOT_SIZE * (normSize - 1), 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 2.58444800f, y + slotSize * (normSize - 1));
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
 		for (int j = 4; j >= 1; j--) {
-			drawer.drawSlot(x + squareSize - SLOT_SIZE * j, y + squareSize - SLOT_SIZE, i++);
+			drawer.drawSlot(x + squareSize - slotSize * j, y + squareSize - slotSize, i++);
 		}
 	}
 
-	public static void drawFiftyTwo(Background bgDrawer, Slots drawer, int x, int y, MatrixStack matrices) {
+	public static void drawFiftyTwo(int slotSize, Slots drawer, int x, int y, Matrix3x2fStack pose) {
 		int i = 0;
-		int squareSize = getSquareSize(52);
-		bgDrawer.drawBackground(squareSize + 2);
+		int squareSize = getSpecialSquareSize(slotSize, 52);
 		x++;
 		y++;
 
 		drawer.drawSlot(x, y, i++);
 
 		for (int j = 6; j >= 1; j--) {
-			drawer.drawSlot(x + squareSize - SLOT_SIZE * j, y, i++);
+			drawer.drawSlot(x + squareSize - slotSize * j, y, i++);
 		}
 
-		Matrix4f mat;
+		Matrix3x2f mat;
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE, y + SLOT_SIZE, 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(45));
-		matrices.translate(0f, SLOT_SIZE * -0.5f, 0f);
-		mat = new Matrix4f(matrices.peek().getPositionMatrix());
+		pose.pushMatrix();
+		pose.translate(x + slotSize, y + slotSize);
+		pose.rotate(Mth.DEG_TO_RAD * 45);
+		pose.translate(0f, slotSize * -0.5f);
+		mat = new Matrix3x2f(pose);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
 		for (int j = 5; j >= 1; j--) {
-			drawer.drawSlot(x + squareSize - SLOT_SIZE * j, y + SLOT_SIZE, i++);
+			drawer.drawSlot(x + squareSize - slotSize * j, y + slotSize, i++);
 		}
 
-		drawer.drawSlot(x, y + squareSize - SLOT_SIZE * 6, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE * 6, y + squareSize - SLOT_SIZE * 6, i++);
-		drawer.drawSlot(x + SLOT_SIZE * 3, y + SLOT_SIZE * 2, i++);
+		drawer.drawSlot(x, y + squareSize - slotSize * 6, i++);
+		drawer.drawSlot(x + squareSize - slotSize * 6, y + squareSize - slotSize * 6, i++);
+		drawer.drawSlot(x + slotSize * 3, y + slotSize * 2, i++);
 
 		for (int j = 3; j >= 1; j--) {
-			drawer.drawSlot(x + squareSize - SLOT_SIZE * j, y + SLOT_SIZE * 2, i++);
+			drawer.drawSlot(x + squareSize - slotSize * j, y + slotSize * 2, i++);
 		}
 		for (int j = 0; j < 3; j++) {
-			drawer.drawSlot(x + SLOT_SIZE * j, y + squareSize - SLOT_SIZE * 5, i++);
+			drawer.drawSlot(x + slotSize * j, y + squareSize - slotSize * 5, i++);
 		}
 
-		matrices.push();
-		matrices.translate(SLOT_SIZE * 3, SLOT_SIZE * 2, 0f);
-		matrices.multiplyPositionMatrix(mat);
+		pose.pushMatrix();
+		pose.translate(slotSize * 3, slotSize * 2);
+		pose.mul(mat);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
 		for (int j = 2; j >= 1; j--) {
-			drawer.drawSlot(x + squareSize - SLOT_SIZE * j, y + SLOT_SIZE * 3, i++);
+			drawer.drawSlot(x + squareSize - slotSize * j, y + slotSize * 3, i++);
 		}
 
 		for (int j = 0; j < 4; j++) {
-			drawer.drawSlot(x + SLOT_SIZE * j, y + squareSize - SLOT_SIZE * 4, i++);
+			drawer.drawSlot(x + slotSize * j, y + squareSize - slotSize * 4, i++);
 		}
 
-		drawer.drawSlot(x + squareSize - SLOT_SIZE * 3, y + squareSize - SLOT_SIZE * 4, i++);
+		drawer.drawSlot(x + squareSize - slotSize * 3, y + squareSize - slotSize * 4, i++);
 
 		for (int j = 2; j >= 1; j--) {
-			drawer.drawSlot(x + squareSize - SLOT_SIZE * j, y + SLOT_SIZE * 4, i++);
+			drawer.drawSlot(x + squareSize - slotSize * j, y + slotSize * 4, i++);
 		}
 
 		for (int j = 0; j < 5; j++) {
-			drawer.drawSlot(x + SLOT_SIZE * j, y + squareSize - SLOT_SIZE * 3, i++);
+			drawer.drawSlot(x + slotSize * j, y + squareSize - slotSize * 3, i++);
 		}
 
-		drawer.drawSlot(x + SLOT_SIZE * 5, y + SLOT_SIZE * 5, i++);
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y + SLOT_SIZE * 5, i++);
+		drawer.drawSlot(x + slotSize * 5, y + slotSize * 5, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y + slotSize * 5, i++);
 
 		for (int j = 0; j < 5; j++) {
-			drawer.drawSlot(x + SLOT_SIZE * j, y + squareSize - SLOT_SIZE * 2, i++);
+			drawer.drawSlot(x + slotSize * j, y + squareSize - slotSize * 2, i++);
 		}
 
-		matrices.push();
-		matrices.translate(SLOT_SIZE * 5, SLOT_SIZE * 5, 0f);
-		matrices.multiplyPositionMatrix(mat);
+		pose.pushMatrix();
+		pose.translate(slotSize * 5, slotSize * 5);
+		pose.mul(mat);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
 		for (int j = 0; j < 6; j++) {
-			drawer.drawSlot(x + SLOT_SIZE * j, y + squareSize - SLOT_SIZE, i++);
+			drawer.drawSlot(x + slotSize * j, y + squareSize - slotSize, i++);
 		}
 
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y + squareSize - SLOT_SIZE, i);
+		drawer.drawSlot(x + squareSize - slotSize, y + squareSize - slotSize, i);
 	}
 
-	private static int rowFiftyThree(Slots drawer, int i, MatrixStack matrices) {
+	private static int rowFiftyThree(int slotSize, Slots drawer, int i, Matrix3x2fStack pose) {
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, SLOT_SIZE * -0.48051357f, 0f);
+		pose.translate(slotSize, slotSize * -0.48051357f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, SLOT_SIZE * -0.4805137f, 0f);
+		pose.translate(slotSize, slotSize * -0.4805137f);
 		drawer.drawSlot(0, 0, i++);
-		drawer.drawSlot(SLOT_SIZE, 0, i++);
-		matrices.translate(SLOT_SIZE * 2, SLOT_SIZE * -0.48051375f, 0f);
+		drawer.drawSlot(slotSize, 0, i++);
+		pose.translate(slotSize * 2, slotSize * -0.48051375f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, SLOT_SIZE * -0.4805137f, 0f);
+		pose.translate(slotSize, slotSize * -0.4805137f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, SLOT_SIZE * -0.48051375f, 0f);
+		pose.translate(slotSize, slotSize * -0.48051375f);
 		drawer.drawSlot(0, 0, i++);
 		return i;
 	}
 
-	public static void drawFiftyThree(Background bgDrawer, Slots drawer, int x, int y, MatrixStack matrices) {
+	public static void drawFiftyThree(int slotSize, Slots drawer, int x, int y, Matrix3x2fStack pose) {
 		int i = 0;
-		int squareSize = getSquareSize(53);
-		bgDrawer.drawBackground(squareSize + 2);
+		int squareSize = getSpecialSquareSize(slotSize, 53);
 		x++;
 		y++;
 
 		for (int j = 0; j < 5; j++) {
 			for (int k = 0; k < 5 - j; k++) {
-				drawer.drawSlot(x + SLOT_SIZE * k, y + SLOT_SIZE * j, i++);
+				drawer.drawSlot(x + slotSize * k, y + slotSize * j, i++);
 			}
 		}
 
-		drawer.drawSlot(x, y + squareSize - SLOT_SIZE * 2, i++);
+		drawer.drawSlot(x, y + squareSize - slotSize * 2, i++);
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 5.09470432f, y + SLOT_SIZE * 0.42478198f, 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(-25.13686477f));
-		matrices.translate(SLOT_SIZE * -6, SLOT_SIZE * 2.40256844f, 0f);
-		i = rowFiftyThree(drawer, i, matrices);
-		matrices.pop();
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 5.09470432f, y + slotSize * 0.42478198f);
+		pose.rotate(Mth.DEG_TO_RAD * -25.13686477f);
+		pose.translate(slotSize * -6, slotSize * 2.40256844f);
+		i = rowFiftyThree(slotSize, drawer, i, pose);
+		pose.popMatrix();
 
-		drawer.drawSlot(x, y + squareSize - SLOT_SIZE, i++);
+		drawer.drawSlot(x, y + squareSize - slotSize, i++);
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 5.09470432f, y + SLOT_SIZE * 0.42478198f, 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(-25.13686477f));
-		matrices.translate(SLOT_SIZE * -6, SLOT_SIZE * 3.40256844f, 0f);
-		i = rowFiftyThree(drawer, i, matrices);
-		matrices.pop();
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 5.09470432f, y + slotSize * 0.42478198f);
+		pose.rotate(Mth.DEG_TO_RAD * -25.13686477f);
+		pose.translate(slotSize * -6, slotSize * 3.40256844f);
+		i = rowFiftyThree(slotSize, drawer, i, pose);
+		pose.popMatrix();
 
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y, i++);
 
 		for (int j = 6; j >= 1; j--) {
 			for (int k = 7 - j; k >= 1; k--) {
-				drawer.drawSlot(x + squareSize - SLOT_SIZE * k, y + squareSize - SLOT_SIZE * j, i++);
+				drawer.drawSlot(x + squareSize - slotSize * k, y + squareSize - slotSize * j, i++);
 			}
 		}
 	}
 
-	public static void drawFiftyFour(Background bgDrawer, Slots drawer, int x, int y, MatrixStack matrices) {
+	public static void drawFiftyFour(int slotSize, Slots drawer, int x, int y, Matrix3x2fStack pose) {
 		int i = 0;
 		float normSize = 7.84666719f;
-		int squareSize = getSquareSize(54);
-		bgDrawer.drawBackground(squareSize + 2);
+		int squareSize = getSpecialSquareSize(slotSize, 54);
 		x++;
 		y++;
 
 		int[] lengths = {6,5,4,2,1};
 		for (int j = 0; j < lengths.length; j++) {
 			for (int k = 0; k < lengths[j]; k++) {
-				drawer.drawSlot(x + SLOT_SIZE * k, y + SLOT_SIZE * j, i++);
+				drawer.drawSlot(x + slotSize * k, y + slotSize * j, i++);
 			}
 		}
 
-		drawer.drawSlot(x + squareSize - SLOT_SIZE, y, i++);
+		drawer.drawSlot(x + squareSize - slotSize, y, i++);
 
-		Quaternionf rot = RotationAxis.POSITIVE_Z.rotationDegrees(34.73490026f);
+		float rotAngle = Mth.DEG_TO_RAD * 34.73490026f;
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * (normSize - 0.75f), y + SLOT_SIZE * (normSize - 6.67333359f), 0f);
-		matrices.multiply(rot);
-		matrices.translate(-SLOT_SIZE, 0f, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * (normSize - 0.75f), y + slotSize * (normSize - 6.67333359f));
+		pose.rotate(rotAngle);
+		pose.translate(-slotSize, 0f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * normSize, y + SLOT_SIZE * (normSize - 6), 0f);
-		matrices.multiply(rot);
-		matrices.translate(-SLOT_SIZE, 0f, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * normSize, y + slotSize * (normSize - 6));
+		pose.rotate(rotAngle);
+		pose.translate(-slotSize, 0f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * (normSize - 1.52688698f), y + SLOT_SIZE * (normSize - 5.99513072f), 0f);
-		matrices.multiply(rot);
-		matrices.translate(-SLOT_SIZE, 0f, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * (normSize - 1.52688698f), y + slotSize * (normSize - 5.99513072f));
+		pose.rotate(rotAngle);
+		pose.translate(-slotSize, 0f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * (normSize - 0.77688698f), y + SLOT_SIZE * (normSize - 5.32179712f), 0f);
-		matrices.multiply(rot);
-		matrices.translate(-SLOT_SIZE, 0f, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * (normSize - 0.77688698f), y + slotSize * (normSize - 5.32179712f));
+		pose.rotate(rotAngle);
+		pose.translate(-slotSize, 0f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * (normSize - 1.55377397f), y + SLOT_SIZE * (normSize - 4.64359425f), 0f);
-		matrices.multiply(rot);
-		matrices.translate(SLOT_SIZE * -2, SLOT_SIZE * -0.07728492f, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * (normSize - 1.55377397f), y + slotSize * (normSize - 4.64359425f));
+		pose.rotate(rotAngle);
+		pose.translate(slotSize * -2, slotSize * -0.07728492f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, SLOT_SIZE * 0.07728492f, 0f);
+		pose.translate(slotSize, slotSize * 0.07728492f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(-SLOT_SIZE, SLOT_SIZE * 0.92271507f, 0f);
+		pose.translate(-slotSize, slotSize * 0.92271507f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, SLOT_SIZE * 0.07728492f, 0f);
+		pose.translate(slotSize, slotSize * 0.07728492f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 1.55377397f, y + SLOT_SIZE * 4.64359425f, 0f);
-		matrices.multiply(rot);
-		matrices.translate(0f, SLOT_SIZE * -2, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 1.55377397f, y + slotSize * 4.64359425f);
+		pose.rotate(rotAngle);
+		pose.translate(0f, slotSize * -2);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, SLOT_SIZE * 0.07728492f, 0f);
+		pose.translate(slotSize, slotSize * 0.07728492f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(-SLOT_SIZE, SLOT_SIZE * 0.92271507f, 0f);
+		pose.translate(-slotSize, slotSize * 0.92271507f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, SLOT_SIZE * 0.07728492f, 0f);
+		pose.translate(slotSize, slotSize * 0.07728492f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 0.77688698f, y + SLOT_SIZE * 5.32179712f, 0f);
-		matrices.multiply(rot);
-		matrices.translate(0f, -SLOT_SIZE, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 0.77688698f, y + slotSize * 5.32179712f);
+		pose.rotate(rotAngle);
+		pose.translate(0f, -slotSize);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 1.52688698f, y + SLOT_SIZE * 5.99513072f, 0f);
-		matrices.multiply(rot);
-		matrices.translate(0f, -SLOT_SIZE, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 1.52688698f, y + slotSize * 5.99513072f);
+		pose.rotate(rotAngle);
+		pose.translate(0f, -slotSize);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.translate(x, y + SLOT_SIZE * 6, 0f);
-		matrices.multiply(rot);
-		matrices.translate(0f, -SLOT_SIZE, 0f);
+		pose.pushMatrix();
+		pose.translate(x, y + slotSize * 6);
+		pose.rotate(rotAngle);
+		pose.translate(0f, -slotSize);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 0.75f, y + SLOT_SIZE * 6.67333359f, 0f);
-		matrices.multiply(rot);
-		matrices.translate(0f, -SLOT_SIZE, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 0.75f, y + slotSize * 6.67333359f);
+		pose.rotate(rotAngle);
+		pose.translate(0f, -slotSize);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		drawer.drawSlot(x, y + squareSize - SLOT_SIZE, i++);
+		drawer.drawSlot(x, y + squareSize - slotSize, i++);
 
 		for (int j = lengths.length; j >= 1; j--) {
 			for (int k = lengths[j - 1]; k >= 1; k--) {
-				drawer.drawSlot(x + squareSize - SLOT_SIZE * k, y + squareSize - SLOT_SIZE * j, i++);
+				drawer.drawSlot(x + squareSize - slotSize * k, y + squareSize - slotSize * j, i++);
 			}
 		}
 	}
 
-	public static void drawFiftyFive(Background bgDrawer, Slots drawer, int x, int y, MatrixStack matrices) {
+	public static void drawFiftyFive(int slotSize, Slots drawer, int x, int y, Matrix3x2fStack pose) {
 		int i = 0;
-		int squareSize = getSquareSize(55);
-		bgDrawer.drawBackground(squareSize + 2);
+		int squareSize = getSpecialSquareSize(slotSize, 55);
 		x++;
 		y++;
 
 		for (int j = 0; j < 3; j++) {
 			for (int k = 0; k < 3 - j; k++) {
-				drawer.drawSlot(x + SLOT_SIZE * k, y + SLOT_SIZE * j, i++);
+				drawer.drawSlot(x + slotSize * k, y + slotSize * j, i++);
 			}
 		}
 
 		for (int j = 4; j >= 1; j--) {
-			drawer.drawSlot(x + squareSize - SLOT_SIZE * j, y, i++);
+			drawer.drawSlot(x + squareSize - slotSize * j, y, i++);
 		}
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 3.13009105f, y + SLOT_SIZE * 0.67256345f, 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(21.66800178f));
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 3.13009105f, y + slotSize * 0.67256345f);
+		pose.rotate(Mth.DEG_TO_RAD * 21.66800178f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		Matrix4f mat1;
+		Matrix3x2f mat1;
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 3.16066671f, y + SLOT_SIZE * 5.96465671f, 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(13.30405178f));
-		mat1 = new Matrix4f(matrices.peek().getPositionMatrix());
-		matrices.translate(SLOT_SIZE * -0.25819987f, SLOT_SIZE * -5.04051442, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 3.16066671f, y + slotSize * 5.96465671f);
+		pose.rotate(Mth.DEG_TO_RAD * 13.30405178f);
+		mat1 = new Matrix3x2f(pose);
+		pose.translate(slotSize * -0.25819987f, slotSize * -5.04051442f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, SLOT_SIZE * 0.04051442f, 0f);
+		pose.translate(slotSize, slotSize * 0.04051442f);
 		drawer.drawSlot(0, 0, i++);
-		drawer.drawSlot(SLOT_SIZE, 0, i++);
-		matrices.translate(SLOT_SIZE * 2, SLOT_SIZE * -0.00696516f, 0f);
+		drawer.drawSlot(slotSize, 0, i++);
+		pose.translate(slotSize * 2, slotSize * -0.00696516f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 2, y + SLOT_SIZE * 2, 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(15.87748802f));
-		matrices.translate(0f, SLOT_SIZE * -0.55282875f, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 2, y + slotSize * 2);
+		pose.rotate(Mth.DEG_TO_RAD * 15.87748802f);
+		pose.translate(0f, slotSize * -0.55282875f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		Matrix4f mat2;
+		Matrix3x2f mat2;
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 3.09209914f, y + SLOT_SIZE * 1.81565139f, 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(14.57170350f));
-		mat2 = new Matrix4f(matrices.peek().getPositionMatrix());
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 3.09209914f, y + slotSize * 1.81565139f);
+		pose.rotate(Mth.DEG_TO_RAD * 14.57170350f);
+		mat2 = new Matrix3x2f(pose);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.multiplyPositionMatrix(mat1);
-		matrices.translate(SLOT_SIZE * -0.02173524f, SLOT_SIZE * -4, 0f);
+		pose.pushMatrix();
+		pose.mul(mat1);
+		pose.translate(slotSize * -0.02173524f, slotSize * -4);
 		for (int j = 0; j < 3; j++) {
-			drawer.drawSlot(SLOT_SIZE * j, 0, i++);
+			drawer.drawSlot(slotSize * j, 0, i++);
 		}
-		matrices.translate(SLOT_SIZE * 3, SLOT_SIZE * -0.00696516f, 0f);
+		pose.translate(slotSize * 3, slotSize * -0.00696516f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.multiplyPositionMatrix(mat2);
-		matrices.translate(SLOT_SIZE * -1.72683179f, SLOT_SIZE * 0.90693694f, 0f);
+		pose.pushMatrix();
+		pose.mul(mat2);
+		pose.translate(slotSize * -1.72683179f, slotSize * 0.90693694f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, SLOT_SIZE * 0.09306304f, 0f);
+		pose.translate(slotSize, slotSize * 0.09306304f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.multiplyPositionMatrix(mat1);
-		matrices.translate(SLOT_SIZE * -0.77086806f, SLOT_SIZE * -3, 0f);
+		pose.pushMatrix();
+		pose.mul(mat1);
+		pose.translate(slotSize * -0.77086806f, slotSize * -3);
 		for (int j = 0; j < 4; j++) {
-			drawer.drawSlot(SLOT_SIZE * j, 0, i++);
+			drawer.drawSlot(slotSize * j, 0, i++);
 		}
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 1.18415667f, y + SLOT_SIZE * 3.40017871f, 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(13.79356726f));
-		matrices.translate(-SLOT_SIZE, SLOT_SIZE * -0.10665350f, 0f);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 1.18415667f, y + slotSize * 3.40017871f);
+		pose.rotate(Mth.DEG_TO_RAD * 13.79356726f);
+		pose.translate(-slotSize, slotSize * -0.10665350f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, SLOT_SIZE * 0.10665350f, 0f);
+		pose.translate(slotSize, slotSize * 0.10665350f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.pop();
+		pose.popMatrix();
 
-		matrices.push();
-		matrices.multiplyPositionMatrix(mat1);
-		matrices.translate(SLOT_SIZE * -1.5139121f, SLOT_SIZE * -2, 0f);
+		pose.pushMatrix();
+		pose.mul(mat1);
+		pose.translate(slotSize * -1.5139121f, slotSize * -2);
 		for (int j = 0; j < 4; j++) {
-			drawer.drawSlot(SLOT_SIZE * j, 0, i++);
+			drawer.drawSlot(slotSize * j, 0, i++);
 		}
-		matrices.translate(SLOT_SIZE * -1.74304404f, SLOT_SIZE * 0.96140677f, 0f);
+		pose.translate(slotSize * -1.74304404f, slotSize * 0.96140677f);
 		drawer.drawSlot(0, 0, i++);
-		matrices.translate(SLOT_SIZE, SLOT_SIZE * 0.03859322f, 0f);
+		pose.translate(slotSize, slotSize * 0.03859322f);
 		for (int j = 0; j < 4; j++) {
-			drawer.drawSlot(SLOT_SIZE * j, 0, i++);
+			drawer.drawSlot(slotSize * j, 0, i++);
 		}
-		matrices.translate(SLOT_SIZE * -0.74304404f, SLOT_SIZE, 0f);
+		pose.translate(slotSize * -0.74304404f, slotSize);
 		for (int j = 0; j < 4; j++) {
-			drawer.drawSlot(SLOT_SIZE * j, 0, i++);
+			drawer.drawSlot(slotSize * j, 0, i++);
 		}
-		matrices.pop();
+		pose.popMatrix();
 
 		for (int j = 0; j < 3; j++) {
-			drawer.drawSlot(x + SLOT_SIZE * j, y + squareSize - SLOT_SIZE, i++);
+			drawer.drawSlot(x + slotSize * j, y + squareSize - slotSize, i++);
 		}
 
 		for (int j = 4; j >= 1; j--) {
 			for (int k = 5 - j; k >= 1; k--) {
-				drawer.drawSlot(x + squareSize - SLOT_SIZE * k, y + squareSize - SLOT_SIZE * j, i++);
+				drawer.drawSlot(x + squareSize - slotSize * k, y + squareSize - slotSize * j, i++);
 			}
 		}
 	}
 
-	private static int tiltedRowSixtyFive(Slots drawer, int i, MatrixStack matrices, float middleOffset) {
+	/*
+	private static int tiltedRowSixtyFive(Slots drawer, int i, Matrix3x2fStack pose, float middleOffset) {
 		drawer.drawSlot(0, 0, i++);
-		drawer.drawSlot(SLOT_SIZE, 0, i++);
+		drawer.drawSlot(slotSize, 0, i++);
 
-		matrices.translate(0f, middleOffset, 0f);
-		drawer.drawSlot(SLOT_SIZE * 2, 0, i++);
-		matrices.translate(0f, -middleOffset, 0f);
+		pose.translate(0f, middleOffset);
+		drawer.drawSlot(slotSize * 2, 0, i++);
+		pose.translate(0f, -middleOffset);
 
-		drawer.drawSlot(SLOT_SIZE * 3, 0, i++);
-		drawer.drawSlot(SLOT_SIZE * 4, 0, i++);
+		drawer.drawSlot(slotSize * 3, 0, i++);
+		drawer.drawSlot(slotSize * 4, 0, i++);
 
 		return i;
 	}
 
-	public static void drawSixtyFive(Background bgDrawer, Slots drawer, int x, int y, MatrixStack matrices) {
+	public static void drawSixtyFive(int slotSize, Slots drawer, int x, int y, Matrix3x2fStack pose) {
 		int i = 0;
-		int squareSize = getSquareSize(65);
-		bgDrawer.drawBackground(squareSize + 2);
+		int squareSize = getSpecialSquareSize(slotSize, 65);
 		x++;
 		y++;
 
 		for (int j = 0; j < 4; j++) {
 			for (int k = 0; k < 4 - j; k++) {
-				drawer.drawSlot(x + SLOT_SIZE * k, y + SLOT_SIZE * j, i++);
+				drawer.drawSlot(x + slotSize * k, y + slotSize * j, i++);
 			}
 		}
 
 		for (int j = 0; j < 4; j++) {
 			for (int k = 4 - j; k >= 1; k--) {
-				drawer.drawSlot(x + squareSize - SLOT_SIZE * k, y + SLOT_SIZE * j, i++);
+				drawer.drawSlot(x + squareSize - slotSize * k, y + slotSize * j, i++);
 			}
 		}
 
-		drawer.drawSlot(x + squareSize / 2 - SLOT_SIZE / 2, y + squareSize / 2 - SLOT_SIZE / 2, i++);
+		drawer.drawSlot(x + squareSize / 2 - slotSize / 2, y + squareSize / 2 - slotSize / 2, i++);
 
-		float middleOffset = SLOT_SIZE * 0.20710678f;
+		float middleOffset = slotSize * 0.20710678f;
 
-		matrices.push();
-		matrices.translate(x + SLOT_SIZE * 2.5f, y + SLOT_SIZE * 2.5f, 0f);
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(45));
-		matrices.translate(0f, SLOT_SIZE * -2.5f, 0f);
-		i = tiltedRowSixtyFive(drawer, i, matrices, -middleOffset);
-		matrices.translate(0f, SLOT_SIZE, 0f);
-		i = tiltedRowSixtyFive(drawer, i, matrices, -middleOffset);
+		pose.pushMatrix();
+		pose.translate(x + slotSize * 2.5f, y + slotSize * 2.5f);
+		pose.rotate(Mth.DEG_TO_RAD * 45);
+		pose.translate(0f, slotSize * -2.5f);
+		i = tiltedRowSixtyFive(drawer, i, pose, -middleOffset);
+		pose.translate(0f, slotSize);
+		i = tiltedRowSixtyFive(drawer, i, pose, -middleOffset);
 
-		matrices.translate(-middleOffset, SLOT_SIZE, 0f);
+		pose.translate(-middleOffset, slotSize);
 		drawer.drawSlot(0, 0, i++);
-		drawer.drawSlot(SLOT_SIZE, 0, i++);
-		matrices.translate(SLOT_SIZE * 3 + middleOffset * 2, 0f, 0f);
+		drawer.drawSlot(slotSize, 0, i++);
+		pose.translate(slotSize * 3 + middleOffset * 2, 0f);
 		drawer.drawSlot(0, 0, i++);
-		drawer.drawSlot(SLOT_SIZE, 0, i++);
+		drawer.drawSlot(slotSize, 0, i++);
 
-		matrices.translate(SLOT_SIZE * -3 - middleOffset, SLOT_SIZE, 0f);
-		i = tiltedRowSixtyFive(drawer, i, matrices, middleOffset);
-		matrices.translate(0f, SLOT_SIZE, 0f);
-		i = tiltedRowSixtyFive(drawer, i, matrices, middleOffset);
+		pose.translate(slotSize * -3 - middleOffset, slotSize);
+		i = tiltedRowSixtyFive(drawer, i, pose, middleOffset);
+		pose.translate(0f, slotSize);
+		i = tiltedRowSixtyFive(drawer, i, pose, middleOffset);
 
-		matrices.pop();
+		pose.popMatrix();
 
 		for (int j = 4; j >= 1; j--) {
 			for (int k = 0; k < 5 - j; k++) {
-				drawer.drawSlot(x + SLOT_SIZE * k, y + squareSize - SLOT_SIZE * j, i++);
+				drawer.drawSlot(x + slotSize * k, y + squareSize - slotSize * j, i++);
 			}
 		}
 
 		for (int j = 4; j >= 1; j--) {
 			for (int k = 5 - j; k >= 1; k--) {
-				drawer.drawSlot(x + squareSize - SLOT_SIZE * k, y + squareSize - SLOT_SIZE * j, i++);
+				drawer.drawSlot(x + squareSize - slotSize * k, y + squareSize - slotSize * j, i++);
 			}
 		}
-	}
+	}*/
 }

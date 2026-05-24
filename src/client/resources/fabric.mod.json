@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "id": "perfectlypacked",
+  "version": "2.0.0-alpha",
+  "name": "Perfectly Packed",
+  "description": "Using the best-known square packing technology, optimize the space in your bundles! Pre-bundle rework.",
+  "authors": ["Syst3ms"],
+  "contact": {},
+  "license": "GNU GPLv2",
+  "icon": "assets/perfectlypacked/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "io.github.syst3ms.perfectlypacked.client.PerfectlyPacked"
+    ],
+    "modmenu": [
+      "io.github.syst3ms.perfectlypacked.client.PerfectlyPackedModMenu"
+    ]
+  },
+  "mixins": [
+    {
+      "config": "perfectlypacked.client.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=0.19.2",
+    "yet_another_config_lib_v3" : ">=3.9.3+26.1-fabric",
+    "minecraft": "~26.1"
+  },
+  "recommends": {
+    "modmenu": "~18.0"
+  }
+}
